@@ -5,12 +5,11 @@ import { ClientStatus } from "@/types/client"
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
-    const query = searchParams.get("query")
     const category = searchParams.get("category")
     const lat = searchParams.get("lat")
     const lon = searchParams.get("lon")
-    const radius = searchParams.get("radius") || "5000" // Default 5km radius
-    const limit = searchParams.get("limit") || "20"
+    const radius = searchParams.get("radius") || "10000"
+    const limit = searchParams.get("limit") || "50"
 
     if (!process.env.GEOAPIFY_API_KEY) {
       return NextResponse.json(
@@ -19,66 +18,85 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Build Geoapify Places API URL
-    const baseUrl = "https://api.geoapify.com/v2/places"
-    const params = new URLSearchParams({
-      apiKey: process.env.GEOAPIFY_API_KEY,
-      limit: limit,
-    })
-
-    // Add search parameters
-    if (query) {
-      params.append("text", query)
-    }
-    if (category) {
-      params.append("categories", category)
-    }
-    if (lat && lon) {
-      params.append("filter", `circle:${lon},${lat},${radius}`)
-      params.append("bias", `proximity:${lon},${lat}`)
+    if (!lat || !lon) {
+      return NextResponse.json(
+        { error: "Latitude and longitude are required" },
+        { status: 400 }
+      )
     }
 
-    const geoapifyUrl = `${baseUrl}?${params.toString()}`
+    if (!category) {
+      return NextResponse.json(
+        { error: "Category is required" },
+        { status: 400 }
+      )
+    }
+
+    // Build Geoapify Places API URL exactly as in the example
+    const geoapifyUrl = `https://api.geoapify.com/v2/places?categories=${category}&filter=circle:${lon},${lat},${radius}&limit=${limit}&apiKey=${process.env.GEOAPIFY_API_KEY}`
+
+    console.log("Fetching from Geoapify:", geoapifyUrl.replace(process.env.GEOAPIFY_API_KEY, "***"))
 
     // Fetch from Geoapify
     const response = await fetch(geoapifyUrl)
     
     if (!response.ok) {
-      throw new Error(`Geoapify API error: ${response.statusText}`)
+      const errorText = await response.text()
+      console.error("Geoapify API error:", response.status, errorText)
+      throw new Error(`Geoapify API error: ${response.status} ${response.statusText}`)
     }
 
     const data = await response.json()
 
+    if (!data.features || !Array.isArray(data.features)) {
+      console.log("No features in response:", data)
+      return NextResponse.json({
+        success: true,
+        count: 0,
+        clients: [],
+        message: "No places found for the given criteria"
+      })
+    }
+
+    console.log(`Found ${data.features.length} places from Geoapify`)
+
     // Transform and store places in database
-    const clients = await Promise.all(
+    const results = await Promise.allSettled(
       data.features.map(async (feature: any) => {
         const properties = feature.properties
         
+        if (!properties.place_id) {
+          console.warn("Skipping place without place_id:", properties)
+          return null
+        }
+
         // Check if client already exists by place_id
         const existingClient = await prisma.client.findUnique({
           where: { placeId: properties.place_id }
         })
 
         if (existingClient) {
+          console.log(`Client already exists: ${properties.name}`)
           return existingClient
         }
 
         // Create new client
+        console.log(`Creating new client: ${properties.name || properties.address_line1}`)
         const newClient = await prisma.client.create({
           data: {
             placeId: properties.place_id,
             name: properties.name || properties.address_line1 || "Unknown",
-            category: properties.categories?.[0] || null,
-            address: properties.formatted || properties.address_line1,
-            street: properties.street || null,
+            category: properties.categories?.[0] || category || null,
+            address: properties.formatted || properties.address_line1 || "Unknown",
+            street: properties.street || properties.address_line1 || null,
             city: properties.city || null,
             state: properties.state || null,
             postcode: properties.postcode || null,
             country: properties.country || null,
             countryCode: properties.country_code || null,
-            phone: properties.datasource?.raw?.phone || null,
-            email: properties.datasource?.raw?.email || null,
-            website: properties.datasource?.raw?.website || null,
+            phone: properties.contact?.phone || properties.datasource?.raw?.phone || null,
+            email: properties.contact?.email || properties.datasource?.raw?.email || null,
+            website: properties.contact?.website || properties.datasource?.raw?.website || null,
             latitude: properties.lat,
             longitude: properties.lon,
             status: ClientStatus.PENDING,
@@ -92,16 +110,32 @@ export async function GET(request: NextRequest) {
       })
     )
 
+    // Filter out nulls and failed promises
+    const clients = results
+      .filter((result) => result.status === "fulfilled" && result.value !== null)
+      .map((result: any) => result.value)
+
+    const newCount = clients.filter((c: any) => 
+      results.find((r: any) => r.status === "fulfilled" && r.value?.id === c.id && r.value?.createdAt.getTime() > Date.now() - 5000)
+    ).length
+
+    console.log(`Stored ${clients.length} clients (${newCount} new, ${clients.length - newCount} existing)`)
+
     return NextResponse.json({
       success: true,
       count: clients.length,
+      newCount,
+      existingCount: clients.length - newCount,
       clients: clients,
     })
 
   } catch (error) {
     console.error("Search error:", error)
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to search places" },
+      { 
+        error: error instanceof Error ? error.message : "Failed to search places",
+        details: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     )
   }

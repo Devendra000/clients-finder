@@ -1,16 +1,51 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
+import { Sidebar } from "./sidebar"
+import { FetchClients } from "./fetch-clients"
 import { SearchBar } from "./search-bar"
 import { MapView } from "./map-view"
 import { ClientList } from "./client-list"
 import type { Client } from "@/types/client"
 
 export function ClientFinderApp() {
+  const [currentView, setCurrentView] = useState<"clients" | "fetch">("clients")
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Load all clients on mount
+  useEffect(() => {
+    if (currentView === "clients") {
+      loadAllClients()
+    }
+  }, [currentView])
+
+  const loadAllClients = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch("/api/clients")
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch clients")
+      }
+
+      const data = await response.json()
+      setClients(data.clients || [])
+
+      if (data.clients?.length === 0) {
+        setError("No clients found. Try fetching some clients first!")
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An error occurred")
+      setClients([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   const handleSearch = useCallback(async (category: string, location: string) => {
     setLoading(true)
@@ -39,7 +74,7 @@ export function ClientFinderApp() {
       setClients(data.clients || [])
 
       if (data.clients?.length === 0) {
-        setError("No clients found for your search. Try different filters or search for new places.")
+        setError("No clients found for your search. Try different filters or fetch new clients.")
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while searching")
@@ -49,45 +84,69 @@ export function ClientFinderApp() {
     }
   }, [])
 
-  return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="mb-6">
-            <h1 className="text-3xl font-bold text-gray-900">Clients Finder</h1>
-            <p className="text-gray-600 mt-2">Search and discover businesses by category and location</p>
-          </div>
-          <SearchBar onSearch={handleSearch} isLoading={loading} />
-        </div>
-      </header>
+  const handleClientsFetched = useCallback(() => {
+    // Switch to clients view and reload
+    setCurrentView("clients")
+    loadAllClients()
+  }, [loadAllClients])
 
-      {/* Error Message */}
-      {error && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">{error}</div>
-        </div>
-      )}
+  return (
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <Sidebar currentView={currentView} onViewChange={setCurrentView} />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
-        <div className="h-full flex flex-col lg:flex-row gap-4 p-4 sm:p-6 max-w-7xl mx-auto w-full">
-          {/* Map View */}
-          <div className="flex-1 rounded-lg overflow-hidden border border-gray-200 shadow">
-            <MapView clients={clients} selectedClient={selectedClient} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {currentView === "fetch" ? (
+          /* Fetch Clients View */
+          <div className="flex-1 overflow-y-auto py-8">
+            <FetchClients onClientsFetched={handleClientsFetched} />
           </div>
+        ) : (
+          /* Clients View */
+          <>
+            {/* Header with Search */}
+            <header className="bg-white border-b border-gray-200 shadow-sm">
+              <div className="px-6 py-6">
+                <div className="mb-4">
+                  <h2 className="text-2xl font-bold text-gray-900">My Clients</h2>
+                  <p className="text-gray-600 mt-1">Search and manage your clients database</p>
+                </div>
+                <SearchBar onSearch={handleSearch} isLoading={loading} />
+              </div>
+            </header>
 
-          {/* Client List */}
-          <div className="w-full lg:w-96 rounded-lg overflow-hidden border border-gray-200 shadow bg-white flex flex-col">
-            <ClientList
-              clients={clients}
-              selectedClient={selectedClient}
-              onSelectClient={setSelectedClient}
-              isLoading={loading}
-            />
-          </div>
-        </div>
-      </main>
+            {/* Error Message */}
+            {error && (
+              <div className="px-6 py-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+                  {error}
+                </div>
+              </div>
+            )}
+
+            {/* Main Content Area */}
+            <main className="flex-1 overflow-hidden">
+              <div className="h-full flex gap-4 p-6">
+                {/* Map View */}
+                <div className="flex-1 rounded-lg overflow-hidden border border-gray-200 shadow bg-white">
+                  <MapView clients={clients} selectedClient={selectedClient} />
+                </div>
+
+                {/* Client List */}
+                <div className="w-96 rounded-lg overflow-hidden border border-gray-200 shadow bg-white flex flex-col">
+                  <ClientList
+                    clients={clients}
+                    selectedClient={selectedClient}
+                    onSelectClient={setSelectedClient}
+                    isLoading={loading}
+                  />
+                </div>
+              </div>
+            </main>
+          </>
+        )}
+      </div>
     </div>
   )
 }
