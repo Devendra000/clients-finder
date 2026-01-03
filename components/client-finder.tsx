@@ -6,7 +6,8 @@ import { FetchClients } from "./fetch-clients"
 import { SearchBar } from "./search-bar"
 import { MapView } from "./map-view"
 import { ClientList } from "./client-list"
-import type { Client } from "@/types/client"
+import { ClientDetail } from "./client-detail"
+import type { Client, ClientStatus } from "@/types/client"
 
 export function ClientFinderApp() {
   const [currentView, setCurrentView] = useState<"clients" | "fetch">("clients")
@@ -90,6 +91,17 @@ export function ClientFinderApp() {
     loadAllClients()
   }, [loadAllClients])
 
+  const handleStatusChange = useCallback((clientId: string, newStatus: ClientStatus) => {
+    setClients(prevClients => 
+      prevClients.map(c => 
+        c.id === clientId ? { ...c, status: newStatus } : c
+      )
+    )
+    if (selectedClient?.id === clientId) {
+      setSelectedClient(prev => prev ? { ...prev, status: newStatus } : null)
+    }
+  }, [selectedClient])
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -131,6 +143,17 @@ export function ClientFinderApp() {
                 {/* Map View */}
                 <div className="flex-1 rounded-lg overflow-hidden border border-gray-200 shadow bg-white">
                   <MapView clients={clients} selectedClient={selectedClient} />
+
+                {/* Client Detail Panel */}
+                {selectedClient && (
+                  <div className="w-96 rounded-lg overflow-hidden border border-gray-200 shadow bg-white flex flex-col">
+                    <ClientDetail 
+                      client={selectedClient}
+                      onClose={() => setSelectedClient(null)}
+                      onStatusChange={handleStatusChange}
+                    />
+                  </div>
+                )}
                 </div>
 
                 {/* Client List */}
