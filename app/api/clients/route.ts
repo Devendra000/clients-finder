@@ -23,64 +23,57 @@ export async function GET(request: NextRequest) {
     }
     
     // Initialize AND array for multiple filters
-    if (!where.AND) {
-      where.AND = []
-    }
+    const andConditions: any[] = []
     
     // Filter by website presence
     if (hasWebsite === "false") {
-      where.AND.push({
+      andConditions.push({
         OR: [
           { website: null },
           { website: "" },
         ]
       })
     } else if (hasWebsite === "true") {
-      where.AND.push({
-        AND: [
-          { website: { not: null } },
-          { website: { not: "" } },
-        ]
+      andConditions.push({
+        website: { not: null }
+      })
+      andConditions.push({
+        website: { not: "" }
       })
     }
     
     // Filter by phone presence
     if (hasPhone === "false") {
-      where.AND.push({
+      andConditions.push({
         OR: [
           { phone: null },
           { phone: "" },
         ]
       })
     } else if (hasPhone === "true") {
-      where.AND.push({
-        AND: [
-          { phone: { not: null } },
-          { phone: { not: "" } },
-        ]
+      andConditions.push({
+        phone: { not: null }
+      })
+      andConditions.push({
+        phone: { not: "" }
       })
     }
     
     // Filter by email presence
     if (hasEmail === "false") {
-      where.AND.push({
+      andConditions.push({
         OR: [
           { email: null },
           { email: "" },
         ]
       })
     } else if (hasEmail === "true") {
-      where.AND.push({
-        AND: [
-          { email: { not: null } },
-          { email: { not: "" } },
-        ]
+      andConditions.push({
+        email: { not: null }
       })
-    }
-    
-    // Clean up empty AND array
-    if (where.AND.length === 0) {
-      delete where.AND
+      andConditions.push({
+        email: { not: "" }
+      })
     }
     
     // Fuzzy search across multiple fields
@@ -102,8 +95,8 @@ export async function GET(request: NextRequest) {
         ]
       }))
       
-      // All words must match (AND logic) - at least one field per word
-      where.AND = wordConditions
+      // Add search conditions to AND array
+      andConditions.push(...wordConditions)
     } else {
       // Original filters if no general search
       if (category && category !== "All Categories") {
@@ -119,6 +112,11 @@ export async function GET(request: NextRequest) {
           mode: 'insensitive'
         }
       }
+    }
+
+    // Apply AND conditions if any exist
+    if (andConditions.length > 0) {
+      where.AND = andConditions
     }
 
     // Get clients from database
