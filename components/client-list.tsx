@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { PhoneIcon, MapPinIcon, BuildingIcon, Globe, Mail, Clock, ChevronDown, ChevronUp, MapIcon, Eye } from "lucide-react"
+import { PhoneIcon, MapPinIcon, BuildingIcon, Globe, Mail, Clock, ChevronDown, ChevronUp, MapIcon, Eye, Copy, Check } from "lucide-react"
 import type { Client } from "@/types/client"
 import { highlightText } from "@/lib/highlight"
 
@@ -17,6 +17,7 @@ interface ClientListProps {
 export function ClientList({ clients, selectedClient, onSelectClient, isLoading, searchQuery = "" }: ClientListProps) {
   const selectedRef = useRef<HTMLDivElement | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [copiedPhone, setCopiedPhone] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -29,6 +30,17 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading,
 
   const handleViewClient = (clientId: string) => {
     router.push(`/clients/${clientId}`)
+  }
+
+  const copyPhoneNumber = async (phone: string, e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      await navigator.clipboard.writeText(phone)
+      setCopiedPhone(phone)
+      setTimeout(() => setCopiedPhone(null), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
   }
 
   if (isLoading) {
@@ -110,9 +122,24 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading,
                         {client.phone && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <PhoneIcon className="h-4 w-4 flex-shrink-0" />
-                            <a href={`tel:${client.phone}`} className="hover:text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
+                            <a 
+                              href={`tel:${client.phone}`} 
+                              className="hover:text-blue-600 hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {highlightText(client.phone, searchQuery)}
                             </a>
+                            <button
+                              onClick={(e) => copyPhoneNumber(client.phone!, e)}
+                              className="p-0.5 hover:bg-gray-200 rounded transition-colors"
+                              title="Copy phone number"
+                            >
+                              {copiedPhone === client.phone ? (
+                                <Check className="h-3.5 w-3.5 text-green-600" />
+                              ) : (
+                                <Copy className="h-3.5 w-3.5 text-gray-500 hover:text-blue-600" />
+                              )}
+                            </button>
                           </div>
                         )}
                         

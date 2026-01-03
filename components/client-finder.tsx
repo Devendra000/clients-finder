@@ -18,6 +18,7 @@ export function ClientFinderApp() {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedStatus, setSelectedStatus] = useState<ClientStatus | "ALL">("ALL")
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [advancedFilters, setAdvancedFilters] = useState<{
     website: "all" | "has" | "no"
     phone: "all" | "has" | "no"
@@ -173,8 +174,31 @@ export function ClientFinderApp() {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+        className="fixed top-4 left-4 z-50 p-2 bg-gray-900 text-white rounded-lg lg:hidden"
+        aria-label="Toggle menu"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {isMobileMenuOpen ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          )}
+        </svg>
+      </button>
+
       {/* Sidebar */}
-      <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+      <Sidebar 
+        currentView={currentView} 
+        onViewChange={(view) => {
+          setCurrentView(view)
+          setIsMobileMenuOpen(false)
+        }}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+      />
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -188,12 +212,12 @@ export function ClientFinderApp() {
           <>
             {/* Header with Search */}
             <header className="bg-white border-b border-gray-200 shadow-sm">
-              <div className="px-6 py-6">
-                <div className="mb-4">
-                  <h2 className="text-2xl font-bold text-gray-900">My Clients</h2>
-                  <p className="text-gray-600 mt-1">Search and manage your clients database</p>
+              <div className="px-4 lg:px-6 py-3 lg:py-6">
+                <div className="mb-2 lg:mb-4">
+                  <h2 className="text-lg lg:text-2xl font-bold text-gray-900">My Clients</h2>
+                  <p className="text-xs lg:text-base text-gray-600 mt-0.5 lg:mt-1 hidden sm:block">Search and manage your clients database</p>
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-2 lg:space-y-4">
                   <SearchBar onSearch={(query) => handleSearch(query)} isLoading={loading} />
                   <StatusFilter selectedStatus={selectedStatus} onStatusChange={handleStatusChange} />
                   <AdvancedFilters 
@@ -207,23 +231,23 @@ export function ClientFinderApp() {
 
             {/* Error Message */}
             {error && (
-              <div className="px-6 py-4">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+              <div className="px-4 lg:px-6 py-4">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 lg:p-4 text-sm lg:text-base text-red-800">
                   {error}
                 </div>
               </div>
             )}
 
             {/* Main Content Area */}
-            <main className="flex-1 overflow-hidden">
-              <div className="h-full flex gap-4 p-6">
-                {/* Map View */}
-                <div className="flex-1 rounded-lg overflow-hidden border border-gray-200 shadow bg-white">
+            <main className="flex-1 overflow-hidden lg:overflow-hidden">
+              <div className="h-full flex flex-col lg:flex-row gap-4 p-4 lg:p-6">
+                {/* Map View - Hidden on mobile, shown on desktop */}
+                <div className="hidden lg:flex flex-1 rounded-lg overflow-hidden border border-gray-200 shadow bg-white">
                   <MapView clients={clients} selectedClient={selectedClient} />
                 </div>
 
-                {/* Client List */}
-                <div className="w-96 rounded-lg overflow-hidden border border-gray-200 shadow bg-white flex flex-col">
+                {/* Client List - Full width on mobile, fixed width on desktop */}
+                <div className="flex-1 lg:w-96 lg:flex-none rounded-lg overflow-hidden border border-gray-200 shadow bg-white flex flex-col">
                   <ClientList
                     clients={clients}
                     selectedClient={selectedClient}

@@ -18,13 +18,13 @@ const statusOptions = [
 
 export function StatusFilter({ selectedStatus, onStatusChange }: StatusFilterProps) {
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-sm font-medium text-gray-700">Filter by status:</span>
+    <div className="flex items-center gap-1.5 lg:gap-2 flex-wrap">
+      <span className="text-xs lg:text-sm font-medium text-gray-700 hidden sm:inline">Status:</span>
       {statusOptions.map((status) => (
         <button
           key={status.value}
           onClick={() => onStatusChange(status.value)}
-          className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+          className={`px-2 lg:px-3 py-1 lg:py-1.5 rounded-full text-xs lg:text-sm font-medium transition-all ${
             selectedStatus === status.value
               ? status.color + " ring-2 ring-offset-1 ring-gray-400"
               : status.color + " opacity-60"

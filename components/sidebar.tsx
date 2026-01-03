@@ -6,11 +6,28 @@ import { Database, Search, Plus, MapPin } from "lucide-react"
 interface SidebarProps {
   currentView: "clients" | "fetch"
   onViewChange: (view: "clients" | "fetch") => void
+  isMobileMenuOpen?: boolean
+  onClose?: () => void
 }
 
-export function Sidebar({ currentView, onViewChange }: SidebarProps) {
+export function Sidebar({ currentView, onViewChange, isMobileMenuOpen = false, onClose }: SidebarProps) {
   return (
-    <aside className="w-64 bg-gray-900 text-white flex flex-col">
+    <>
+      {/* Mobile Overlay */}
+      {isMobileMenuOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={onClose}
+        />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`
+        w-64 bg-gray-900 text-white flex flex-col
+        fixed lg:relative inset-y-0 left-0 z-40
+        transform transition-transform duration-300 ease-in-out
+        ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
       {/* Logo/Header */}
       <div className="p-6 border-b border-gray-700">
         <div className="flex items-center gap-2">
@@ -53,5 +70,6 @@ export function Sidebar({ currentView, onViewChange }: SidebarProps) {
         <p>Powered by Geoapify</p>
       </div>
     </aside>
+    </>
   )
 }
