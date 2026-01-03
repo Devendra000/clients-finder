@@ -4,9 +4,9 @@ import { useState, useCallback, useEffect } from "react"
 import { Sidebar } from "./sidebar"
 import { FetchClients } from "./fetch-clients"
 import { SearchBar } from "./search-bar"
+import { StatusFilter } from "./status-filter"
 import { MapView } from "./map-view"
 import { ClientList } from "./client-list"
-import { ClientDetail } from "./client-detail"
 import type { Client, ClientStatus } from "@/types/client"
 
 export function ClientFinderApp() {
@@ -16,6 +16,7 @@ export function ClientFinderApp() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedStatus, setSelectedStatus] = useState<ClientStatus | "ALL">("ALL")
 
   // Load all clients on mount
   useEffect(() => {
@@ -49,7 +50,7 @@ export function ClientFinderApp() {
     }
   }, [])
 
-  const handleSearch = useCallback(async (searchQuery: string) => {
+  const handleSearch = useCallback(async (searchQuery: string, statusFilter?: ClientStatus | "ALL") => {
     setLoading(true)
     setError(null)
     setSearchQuery(searchQuery)
@@ -60,6 +61,12 @@ export function ClientFinderApp() {
       
       if (searchQuery && searchQuery.trim().length > 0) {
         params.append("search", searchQuery.trim())
+      }
+
+      // Add status filter if not "ALL"
+      const status = statusFilter !== undefined ? statusFilter : selectedStatus
+      if (status !== "ALL") {
+        params.append("status", status)
       }
 
       // Fetch from the real backend API
@@ -75,6 +82,8 @@ export function ClientFinderApp() {
       if (data.clients?.length === 0) {
         if (searchQuery && searchQuery.trim()) {
           setError(`No clients found matching "${searchQuery}". Try a different search term.`)
+        } else if (status !== "ALL") {
+          setError(`No clients found with status "${status}".`)
         } else {
           setError("No clients found. Try fetching some clients first!")
         }
@@ -85,24 +94,18 @@ export function ClientFinderApp() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedStatus])
+
+  const handleStatusChange = useCallback((status: ClientStatus | "ALL") => {
+    setSelectedStatus(status)
+    handleSearch(searchQuery, status)
+  }, [searchQuery, handleSearch])
 
   const handleClientsFetched = useCallback(() => {
     // Switch to clients view and reload
     setCurrentView("clients")
     loadAllClients()
   }, [loadAllClients])
-
-  const handleStatusChange = useCallback((clientId: string, newStatus: ClientStatus) => {
-    setClients(prevClients => 
-      prevClients.map(c => 
-        c.id === clientId ? { ...c, status: newStatus } : c
-      )
-    )
-    if (selectedClient?.id === clientId) {
-      setSelectedClient(prev => prev ? { ...prev, status: newStatus } : null)
-    }
-  }, [selectedClient])
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -126,7 +129,10 @@ export function ClientFinderApp() {
                   <h2 className="text-2xl font-bold text-gray-900">My Clients</h2>
                   <p className="text-gray-600 mt-1">Search and manage your clients database</p>
                 </div>
-                <SearchBar onSearch={handleSearch} isLoading={loading} />
+                <div className="space-y-4">
+                  <SearchBar onSearch={(query) => handleSearch(query)} isLoading={loading} />
+                  <StatusFilter selectedStatus={selectedStatus} onStatusChange={handleStatusChange} />
+                </div>
               </div>
             </header>
 
@@ -145,17 +151,6 @@ export function ClientFinderApp() {
                 {/* Map View */}
                 <div className="flex-1 rounded-lg overflow-hidden border border-gray-200 shadow bg-white">
                   <MapView clients={clients} selectedClient={selectedClient} />
-
-                {/* Client Detail Panel */}
-                {selectedClient && (
-                  <div className="w-96 rounded-lg overflow-hidden border border-gray-200 shadow bg-white flex flex-col">
-                    <ClientDetail 
-                      client={selectedClient}
-                      onClose={() => setSelectedClient(null)}
-                      onStatusChange={handleStatusChange}
-                    />
-                  </div>
-                )}
                 </div>
 
                 {/* Client List */}
