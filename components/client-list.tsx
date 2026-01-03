@@ -4,15 +4,17 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { PhoneIcon, MapPinIcon, BuildingIcon, Globe, Mail, Clock, ChevronDown, ChevronUp, MapIcon, Eye } from "lucide-react"
 import type { Client } from "@/types/client"
+import { highlightText } from "@/lib/highlight"
 
 interface ClientListProps {
   clients: Client[]
   selectedClient: Client | null
   onSelectClient: (client: Client) => void
   isLoading: boolean
+  searchQuery?: string
 }
 
-export function ClientList({ clients, selectedClient, onSelectClient, isLoading }: ClientListProps) {
+export function ClientList({ clients, selectedClient, onSelectClient, isLoading, searchQuery = "" }: ClientListProps) {
   const selectedRef = useRef<HTMLDivElement | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const router = useRouter()
@@ -80,7 +82,7 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
                       onClick={() => onSelectClient(client)}
                     >
                       <div className="flex items-start justify-between">
-                        <h3 className="text-base font-semibold text-gray-900">{client.name}</h3>
+                        <h3 className="text-base font-semibold text-gray-900">{highlightText(client.name, searchQuery)}</h3>
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                           client.status === 'LEAD' ? 'bg-green-100 text-green-800' :
                           client.status === 'CONTACTED' ? 'bg-blue-100 text-blue-800' :
@@ -96,20 +98,20 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
                         {client.category && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <BuildingIcon className="h-4 w-4 flex-shrink-0" />
-                            <span>{client.category}</span>
+                            <span>{highlightText(client.category, searchQuery)}</span>
                           </div>
                         )}
                         
                         <div className="flex items-start gap-2 text-sm text-gray-600">
                           <MapPinIcon className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                          <span>{client.address}</span>
+                          <span>{highlightText(client.address, searchQuery)}</span>
                         </div>
                         
                         {client.phone && (
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <PhoneIcon className="h-4 w-4 flex-shrink-0" />
                             <a href={`tel:${client.phone}`} className="hover:text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
-                              {client.phone}
+                              {highlightText(client.phone, searchQuery)}
                             </a>
                           </div>
                         )}
@@ -118,7 +120,7 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <Mail className="h-4 w-4 flex-shrink-0" />
                             <a href={`mailto:${client.email}`} className="hover:text-blue-600 hover:underline" onClick={(e) => e.stopPropagation()}>
-                              {client.email}
+                              {highlightText(client.email, searchQuery)}
                             </a>
                           </div>
                         )}
@@ -127,7 +129,7 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
                           <div className="flex items-center gap-2 text-sm text-gray-600">
                             <Globe className="h-4 w-4 flex-shrink-0" />
                             <a href={client.website} target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 hover:underline truncate" onClick={(e) => e.stopPropagation()}>
-                              {client.website}
+                              {highlightText(client.website, searchQuery)}
                             </a>
                           </div>
                         )}

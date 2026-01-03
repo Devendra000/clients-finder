@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status")
     const category = searchParams.get("category")
     const city = searchParams.get("city")
+    const search = searchParams.get("search") // New general search parameter
     const limit = searchParams.get("limit")
     const offset = searchParams.get("offset")
 
@@ -18,17 +19,41 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
     
-    if (category) {
-      where.category = {
-        contains: category,
-        mode: 'insensitive'
+    // Fuzzy search across multiple fields
+    if (search && search.trim()) {
+      // Split search query into individual words for fuzzy matching
+      const searchWords = search.trim().split(/\s+/).filter(word => word.length > 0)
+      
+      // Create OR conditions for each word across all searchable fields
+      const wordConditions = searchWords.map(word => ({
+        OR: [
+          { name: { contains: word, mode: 'insensitive' } },
+          { category: { contains: word, mode: 'insensitive' } },
+          { address: { contains: word, mode: 'insensitive' } },
+          { city: { contains: word, mode: 'insensitive' } },
+          { state: { contains: word, mode: 'insensitive' } },
+          { phone: { contains: word, mode: 'insensitive' } },
+          { email: { contains: word, mode: 'insensitive' } },
+          { website: { contains: word, mode: 'insensitive' } },
+        ]
+      }))
+      
+      // All words must match (AND logic) - at least one field per word
+      where.AND = wordConditions
+    } else {
+      // Original filters if no general search
+      if (category && category !== "All Categories") {
+        where.category = {
+          contains: category,
+          mode: 'insensitive'
+        }
       }
-    }
-    
-    if (city) {
-      where.city = {
-        contains: city,
-        mode: 'insensitive'
+      
+      if (city && city.trim()) {
+        where.city = {
+          contains: city,
+          mode: 'insensitive'
+        }
       }
     }
 

@@ -15,6 +15,7 @@ export function ClientFinderApp() {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Load all clients on mount
   useEffect(() => {
@@ -48,20 +49,17 @@ export function ClientFinderApp() {
     }
   }, [])
 
-  const handleSearch = useCallback(async (category: string, location: string) => {
+  const handleSearch = useCallback(async (searchQuery: string) => {
     setLoading(true)
     setError(null)
+    setSearchQuery(searchQuery)
 
     try {
       // Build query parameters for the backend API
       const params = new URLSearchParams()
       
-      if (category && category !== "All Categories") {
-        params.append("category", category)
-      }
-      
-      if (location && location.trim().length > 0) {
-        params.append("city", location)
+      if (searchQuery && searchQuery.trim().length > 0) {
+        params.append("search", searchQuery.trim())
       }
 
       // Fetch from the real backend API
@@ -75,7 +73,11 @@ export function ClientFinderApp() {
       setClients(data.clients || [])
 
       if (data.clients?.length === 0) {
-        setError("No clients found for your search. Try different filters or fetch new clients.")
+        if (searchQuery && searchQuery.trim()) {
+          setError(`No clients found matching "${searchQuery}". Try a different search term.`)
+        } else {
+          setError("No clients found. Try fetching some clients first!")
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while searching")
@@ -162,6 +164,7 @@ export function ClientFinderApp() {
                     clients={clients}
                     selectedClient={selectedClient}
                     onSelectClient={setSelectedClient}
+                    searchQuery={searchQuery}
                     isLoading={loading}
                   />
                 </div>
