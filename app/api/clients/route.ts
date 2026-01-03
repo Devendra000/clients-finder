@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category")
     const city = searchParams.get("city")
     const search = searchParams.get("search") // New general search parameter
+    const hasWebsite = searchParams.get("hasWebsite") // Filter by website presence
     const limit = searchParams.get("limit")
     const offset = searchParams.get("offset")
 
@@ -17,6 +18,26 @@ export async function GET(request: NextRequest) {
     
     if (status && Object.values(ClientStatus).includes(status as ClientStatus)) {
       where.status = status
+    }
+    
+    // Filter by website presence
+    if (hasWebsite === "false") {
+      where.OR = [
+        { website: null },
+        { website: "" },
+      ]
+    } else if (hasWebsite === "true") {
+      where.AND = where.AND || []
+      where.AND.push({
+        website: {
+          not: null,
+        },
+      })
+      where.AND.push({
+        website: {
+          not: "",
+        },
+      })
     }
     
     // Fuzzy search across multiple fields

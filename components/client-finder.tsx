@@ -17,6 +17,7 @@ export function ClientFinderApp() {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedStatus, setSelectedStatus] = useState<ClientStatus | "ALL">("ALL")
+  const [noWebsite, setNoWebsite] = useState(false)
 
   // Load all clients on mount
   useEffect(() => {
@@ -69,6 +70,11 @@ export function ClientFinderApp() {
         params.append("status", status)
       }
 
+      // Add website filter
+      if (noWebsite) {
+        params.append("hasWebsite", "false")
+      }
+
       // Fetch from the real backend API
       const response = await fetch(`/api/clients?${params.toString()}`)
 
@@ -101,6 +107,13 @@ export function ClientFinderApp() {
     handleSearch(searchQuery, status)
   }, [searchQuery, handleSearch])
 
+  const handleWebsiteFilterChange = useCallback(() => {
+    const newNoWebsite = !noWebsite
+    setNoWebsite(newNoWebsite)
+    // Re-trigger search with new filter
+    handleSearch(searchQuery, selectedStatus)
+  }, [noWebsite, searchQuery, selectedStatus, handleSearch])
+
   const handleClientsFetched = useCallback(() => {
     // Switch to clients view and reload
     setCurrentView("clients")
@@ -131,7 +144,18 @@ export function ClientFinderApp() {
                 </div>
                 <div className="space-y-4">
                   <SearchBar onSearch={(query) => handleSearch(query)} isLoading={loading} />
-                  <StatusFilter selectedStatus={selectedStatus} onStatusChange={handleStatusChange} />
+                  <div className="flex items-center gap-4">
+                    <StatusFilter selectedStatus={selectedStatus} onStatusChange={handleStatusChange} />
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={noWebsite}
+                        onChange={handleWebsiteFilterChange}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">No Website</span>
+                    </label>
+                  </div>
                 </div>
               </div>
             </header>
