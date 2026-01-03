@@ -40,10 +40,11 @@ export function ClientFinderApp() {
     }
   }, [])
 
-  // Load all clients on mount
+  // Load all clients on mount or when returning to clients view
   useEffect(() => {
     if (currentView === "clients") {
-      loadAllClients()
+      // Re-apply current filters when loading
+      handleSearch(searchQuery, selectedStatus, advancedFilters)
     }
   }, [currentView])
 
