@@ -39,3 +39,14 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# prisma
+prisma/migrations/
+!prisma/migrations/.gitkeep
+
+# database
+*.db
+*.sqlite
+
+# Keep .env.example but ignore actual .env
+!.env.example

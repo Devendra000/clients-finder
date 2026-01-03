@@ -1,0 +1,43 @@
+// Client domain models
+// Stores potential clients and leads from Geoapify Places API
+
+model Client {
+  id          String       @id @default(cuid())
+  placeId     String       @unique // Geoapify place_id
+  name        String
+  category    String?
+  address     String
+  street      String?
+  city        String?
+  state       String?
+  postcode    String?
+  country     String?
+  countryCode String?
+  phone       String?
+  email       String?
+  website     String?
+  latitude    Float
+  longitude   Float
+  status      ClientStatus @default(PENDING)
+
+  // Additional Geoapify fields
+  openingHours String?
+  facilities   String?
+  datasource   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@index([city])
+  @@map("clients")
+}
+
+enum ClientStatus {
+  PENDING
+  LEAD
+  REJECTED
+  CONTACTED
+  CLOSED
+}

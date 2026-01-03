@@ -17,21 +17,29 @@ export function ClientFinderApp() {
     setError(null)
 
     try {
-      const response = await fetch("/api/clients/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, location }),
-      })
+      // Build query parameters for the backend API
+      const params = new URLSearchParams()
+      
+      if (category && category !== "All Categories") {
+        params.append("category", category)
+      }
+      
+      if (location && location.trim().length > 0) {
+        params.append("city", location)
+      }
+
+      // Fetch from the real backend API
+      const response = await fetch(`/api/clients?${params.toString()}`)
 
       if (!response.ok) {
-        throw new Error("Failed to search clients")
+        throw new Error("Failed to fetch clients")
       }
 
       const data = await response.json()
       setClients(data.clients || [])
 
       if (data.clients?.length === 0) {
-        setError("No clients found for your search. Try different filters.")
+        setError("No clients found for your search. Try different filters or search for new places.")
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while searching")
