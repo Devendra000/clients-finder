@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { PhoneIcon, MapPinIcon, BuildingIcon, Globe, Mail, Clock, ChevronDown, ChevronUp, MapIcon } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { PhoneIcon, MapPinIcon, BuildingIcon, Globe, Mail, Clock, ChevronDown, ChevronUp, MapIcon, Eye } from "lucide-react"
 import type { Client } from "@/types/client"
 
 interface ClientListProps {
@@ -14,6 +15,7 @@ interface ClientListProps {
 export function ClientList({ clients, selectedClient, onSelectClient, isLoading }: ClientListProps) {
   const selectedRef = useRef<HTMLDivElement | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const router = useRouter()
 
   useEffect(() => {
     selectedRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
@@ -21,6 +23,10 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
 
   const toggleExpand = (clientId: string) => {
     setExpandedId(expandedId === clientId ? null : clientId)
+  }
+
+  const handleViewClient = (clientId: string) => {
+    router.push(`/clients/${clientId}`)
   }
 
   if (isLoading) {
@@ -67,12 +73,12 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
                     : "hover:bg-gray-50 border-l-4 border-transparent"
                 }`}
               >
-                <div
-                  onClick={() => onSelectClient(client)}
-                  className="p-4 cursor-pointer"
-                >
+                <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
+                    <div 
+                      className="flex-1 min-w-0 cursor-pointer"
+                      onClick={() => onSelectClient(client)}
+                    >
                       <div className="flex items-start justify-between">
                         <h3 className="text-base font-semibold text-gray-900">{client.name}</h3>
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
@@ -127,6 +133,14 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
                         )}
                       </div>
                     </div>
+                    
+                    <button
+                      onClick={() => handleViewClient(client.id)}
+                      className="flex-shrink-0 px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      <Eye className="h-4 w-4" />
+                      View
+                    </button>
                   </div>
                 </div>
                 
