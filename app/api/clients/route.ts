@@ -10,6 +10,8 @@ export async function GET(request: NextRequest) {
     const city = searchParams.get("city")
     const search = searchParams.get("search") // New general search parameter
     const hasWebsite = searchParams.get("hasWebsite") // Filter by website presence
+    const hasPhone = searchParams.get("hasPhone") // Filter by phone presence
+    const hasEmail = searchParams.get("hasEmail") // Filter by email presence
     const limit = searchParams.get("limit")
     const offset = searchParams.get("offset")
 
@@ -20,24 +22,65 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
     
+    // Initialize AND array for multiple filters
+    if (!where.AND) {
+      where.AND = []
+    }
+    
     // Filter by website presence
     if (hasWebsite === "false") {
-      where.OR = [
-        { website: null },
-        { website: "" },
-      ]
+      where.AND.push({
+        OR: [
+          { website: null },
+          { website: "" },
+        ]
+      })
     } else if (hasWebsite === "true") {
-      where.AND = where.AND || []
       where.AND.push({
-        website: {
-          not: null,
-        },
+        AND: [
+          { website: { not: null } },
+          { website: { not: "" } },
+        ]
       })
+    }
+    
+    // Filter by phone presence
+    if (hasPhone === "false") {
       where.AND.push({
-        website: {
-          not: "",
-        },
+        OR: [
+          { phone: null },
+          { phone: "" },
+        ]
       })
+    } else if (hasPhone === "true") {
+      where.AND.push({
+        AND: [
+          { phone: { not: null } },
+          { phone: { not: "" } },
+        ]
+      })
+    }
+    
+    // Filter by email presence
+    if (hasEmail === "false") {
+      where.AND.push({
+        OR: [
+          { email: null },
+          { email: "" },
+        ]
+      })
+    } else if (hasEmail === "true") {
+      where.AND.push({
+        AND: [
+          { email: { not: null } },
+          { email: { not: "" } },
+        ]
+      })
+    }
+    
+    // Clean up empty AND array
+    if (where.AND.length === 0) {
+      delete where.AND
     }
     
     // Fuzzy search across multiple fields

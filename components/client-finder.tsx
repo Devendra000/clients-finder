@@ -5,6 +5,7 @@ import { Sidebar } from "./sidebar"
 import { FetchClients } from "./fetch-clients"
 import { SearchBar } from "./search-bar"
 import { StatusFilter } from "./status-filter"
+import { AdvancedFilters } from "./advanced-filters"
 import { MapView } from "./map-view"
 import { ClientList } from "./client-list"
 import type { Client, ClientStatus } from "@/types/client"
@@ -17,7 +18,27 @@ export function ClientFinderApp() {
   const [error, setError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedStatus, setSelectedStatus] = useState<ClientStatus | "ALL">("ALL")
-  const [noWebsite, setNoWebsite] = useState(false)
+  const [advancedFilters, setAdvancedFilters] = useState<{
+    website: "all" | "has" | "no"
+    phone: "all" | "has" | "no"
+    email: "all" | "has" | "no"
+  }>({
+    website: "all",
+    phone: "all",
+    email: "all",
+  })
+
+  // Load filters from localStorage after mount (client-side only)
+  useEffect(() => {
+    const saved = localStorage.getItem("clientFilters")
+    if (saved) {
+      try {
+        setAdvancedFilters(JSON.parse(saved))
+      } catch (e) {
+        // If parsing fails, keep defaults
+      }
+    }
+  }, [])
 
   // Load all clients on mount
   useEffect(() => {
@@ -51,7 +72,11 @@ export function ClientFinderApp() {
     }
   }, [])
 
-  const handleSearch = useCallback(async (searchQuery: string, statusFilter?: ClientStatus | "ALL") => {
+  const handleSearch = useCallback(async (
+    searchQuery: string, 
+    statusFilter?: ClientStatus | "ALL",
+    filters?: typeof advancedFilters
+  ) => {
     setLoading(true)
     setError(null)
     setSearchQuery(searchQuery)
@@ -70,9 +95,16 @@ export function ClientFinderApp() {
         params.append("status", status)
       }
 
-      // Add website filter
-      if (noWebsite) {
-        params.append("hasWebsite", "false")
+      // Add advanced filters - use passed filters or current state
+      const currentFilters = filters || advancedFilters
+      if (currentFilters.website !== "all") {
+        params.append("hasWebsite", currentFilters.website === "has" ? "true" : "false")
+      }
+      if (currentFilters.phone !== "all") {
+        params.append("hasPhone", currentFilters.phone === "has" ? "true" : "false")
+      }
+      if (currentFilters.email !== "all") {
+        params.append("hasEmail", currentFilters.email === "has" ? "true" : "false")
       }
 
       // Fetch from the real backend API
@@ -100,19 +132,37 @@ export function ClientFinderApp() {
     } finally {
       setLoading(false)
     }
-  }, [selectedStatus])
+  }, [selectedStatus, advancedFilters])
 
   const handleStatusChange = useCallback((status: ClientStatus | "ALL") => {
     setSelectedStatus(status)
     handleSearch(searchQuery, status)
   }, [searchQuery, handleSearch])
 
-  const handleWebsiteFilterChange = useCallback(() => {
-    const newNoWebsite = !noWebsite
-    setNoWebsite(newNoWebsite)
-    // Re-trigger search with new filter
-    handleSearch(searchQuery, selectedStatus)
-  }, [noWebsite, searchQuery, selectedStatus, handleSearch])
+  const handleAdvancedFiltersChange = useCallback((filters: typeof advancedFilters) => {
+    setAdvancedFilters(filters)
+    // Save to localStorage
+    if (typeof window !== "undefined") {
+      localStorage.setItem("clientFilters", JSON.stringify(filters))
+    }
+    // Pass the new filters directly to avoid stale state
+    handleSearch(searchQuery, selectedStatus, filters)
+  }, [searchQuery, selectedStatus, handleSearch])
+
+  const handleClearFilters = useCallback(() => {
+    const defaultFilters = {
+      website: "all" as const,
+      phone: "all" as const,
+      email: "all" as const,
+    }
+    setAdvancedFilters(defaultFilters)
+    // Clear from localStorage
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("clientFilters")
+    }
+    // Re-search with cleared filters
+    handleSearch(searchQuery, selectedStatus, defaultFilters)
+  }, [searchQuery, selectedStatus, handleSearch])
 
   const handleClientsFetched = useCallback(() => {
     // Switch to clients view and reload
@@ -144,18 +194,12 @@ export function ClientFinderApp() {
                 </div>
                 <div className="space-y-4">
                   <SearchBar onSearch={(query) => handleSearch(query)} isLoading={loading} />
-                  <div className="flex items-center gap-4">
-                    <StatusFilter selectedStatus={selectedStatus} onStatusChange={handleStatusChange} />
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={noWebsite}
-                        onChange={handleWebsiteFilterChange}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-sm font-medium text-gray-700">No Website</span>
-                    </label>
-                  </div>
+                  <StatusFilter selectedStatus={selectedStatus} onStatusChange={handleStatusChange} />
+                  <AdvancedFilters 
+                    filters={advancedFilters} 
+                    onFiltersChange={handleAdvancedFiltersChange}
+                    onClearFilters={handleClearFilters}
+                  />
                 </div>
               </div>
             </header>
