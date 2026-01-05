@@ -3,7 +3,9 @@ export enum ClientStatus {
   LEAD = 'LEAD',
   REJECTED = 'REJECTED',
   CONTACTED = 'CONTACTED',
-  CLOSED = 'CLOSED'
+  CLOSED = 'CLOSED',
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE'
 }
 
 export interface Client {
@@ -29,6 +31,17 @@ export interface Client {
   datasource?: string
   createdAt: Date
   updatedAt: Date
+  hasWebsite?: boolean
+  hasPhone?: boolean
+  hasEmail?: boolean
+}
+
+export interface FilterOptions {
+  category: string
+  status: "all" | "active" | "inactive" | "pending" | "ACTIVE" | "INACTIVE" | "PENDING" | "LEAD" | "CONTACTED" | "REJECTED" | "CLOSED"
+  website: "all" | "yes" | "no"
+  phone: "all" | "yes" | "no"
+  email: "all" | "yes" | "no"
 }
 
 export interface GeoapifyPlace {

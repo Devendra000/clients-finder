@@ -1,176 +1,123 @@
 "use client"
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { Sidebar } from "./sidebar"
 import { FetchClients } from "./fetch-clients"
 import { SearchBar } from "./search-bar"
-import { StatusFilter } from "./status-filter"
-import { AdvancedFilters } from "./advanced-filters"
-import { MapView } from "./map-view"
 import { ClientList } from "./client-list"
-import type { Client, ClientStatus } from "@/types/client"
+import { FilterPanel } from "./filter-panel"
+import type { Client, FilterOptions } from "@/types/client"
 
 export function ClientFinderApp() {
   const [currentView, setCurrentView] = useState<"clients" | "fetch">("clients")
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedStatus, setSelectedStatus] = useState<ClientStatus | "ALL">("ALL")
+  const [searchLocation, setSearchLocation] = useState("")
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const [advancedFilters, setAdvancedFilters] = useState<{
-    website: "all" | "has" | "no"
-    phone: "all" | "has" | "no"
-    email: "all" | "has" | "no"
-  }>({
+
+  const [filters, setFilters] = useState<FilterOptions>({
+    category: "all",
+    status: "all",
     website: "all",
     phone: "all",
     email: "all",
   })
 
-  // Load filters from localStorage after mount (client-side only)
-  useEffect(() => {
-    const saved = localStorage.getItem("clientFilters")
-    if (saved) {
-      try {
-        setAdvancedFilters(JSON.parse(saved))
-      } catch (e) {
-        // If parsing fails, keep defaults
-      }
-    }
-  }, [])
-
-  // Load all clients on mount or when returning to clients view
-  useEffect(() => {
-    if (currentView === "clients") {
-      // Re-apply current filters when loading
-      handleSearch(searchQuery, selectedStatus, advancedFilters)
-    }
-  }, [currentView])
-
   const loadAllClients = useCallback(async () => {
     setLoading(true)
-    setError(null)
-
     try {
       const response = await fetch("/api/clients")
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch clients")
-      }
-
-      const data = await response.json()
-      setClients(data.clients || [])
-
-      if (data.clients?.length === 0) {
-        setError("No clients found. Try fetching some clients first!")
+      if (response.ok) {
+        const data = await response.json()
+        const clientsWithFlags = (data.clients || []).map((client: Client) => ({
+          ...client,
+          hasWebsite: !!client.website,
+          hasPhone: !!client.phone,
+          hasEmail: !!client.email,
+        }))
+        setClients(clientsWithFlags)
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred")
-      setClients([])
+      console.error("Error loading initial data:", err)
     } finally {
       setLoading(false)
     }
   }, [])
 
-  const handleSearch = useCallback(async (
-    searchQuery: string, 
-    statusFilter?: ClientStatus | "ALL",
-    filters?: typeof advancedFilters
-  ) => {
-    setLoading(true)
-    setError(null)
-    setSearchQuery(searchQuery)
-
-    try {
-      // Build query parameters for the backend API
-      const params = new URLSearchParams()
-      
-      if (searchQuery && searchQuery.trim().length > 0) {
-        params.append("search", searchQuery.trim())
-      }
-
-      // Add status filter if not "ALL"
-      const status = statusFilter !== undefined ? statusFilter : selectedStatus
-      if (status !== "ALL") {
-        params.append("status", status)
-      }
-
-      // Add advanced filters - use passed filters or current state
-      const currentFilters = filters || advancedFilters
-      if (currentFilters.website !== "all") {
-        params.append("hasWebsite", currentFilters.website === "has" ? "true" : "false")
-      }
-      if (currentFilters.phone !== "all") {
-        params.append("hasPhone", currentFilters.phone === "has" ? "true" : "false")
-      }
-      if (currentFilters.email !== "all") {
-        params.append("hasEmail", currentFilters.email === "has" ? "true" : "false")
-      }
-
-      // Fetch from the real backend API
-      const response = await fetch(`/api/clients?${params.toString()}`)
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch clients")
-      }
-
-      const data = await response.json()
-      setClients(data.clients || [])
-
-      if (data.clients?.length === 0) {
-        if (searchQuery && searchQuery.trim()) {
-          setError(`No clients found matching "${searchQuery}". Try a different search term.`)
-        } else if (status !== "ALL") {
-          setError(`No clients found with status "${status}".`)
-        } else {
-          setError("No clients found. Try fetching some clients first!")
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred while searching")
-      setClients([])
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    if (currentView === "clients") {
+      loadAllClients()
     }
-  }, [selectedStatus, advancedFilters])
-
-  const handleStatusChange = useCallback((status: ClientStatus | "ALL") => {
-    setSelectedStatus(status)
-    handleSearch(searchQuery, status)
-  }, [searchQuery, handleSearch])
-
-  const handleAdvancedFiltersChange = useCallback((filters: typeof advancedFilters) => {
-    setAdvancedFilters(filters)
-    // Save to localStorage
-    if (typeof window !== "undefined") {
-      localStorage.setItem("clientFilters", JSON.stringify(filters))
-    }
-    // Pass the new filters directly to avoid stale state
-    handleSearch(searchQuery, selectedStatus, filters)
-  }, [searchQuery, selectedStatus, handleSearch])
-
-  const handleClearFilters = useCallback(() => {
-    const defaultFilters = {
-      website: "all" as const,
-      phone: "all" as const,
-      email: "all" as const,
-    }
-    setAdvancedFilters(defaultFilters)
-    // Clear from localStorage
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("clientFilters")
-    }
-    // Re-search with cleared filters
-    handleSearch(searchQuery, selectedStatus, defaultFilters)
-  }, [searchQuery, selectedStatus, handleSearch])
+  }, [currentView, loadAllClients])
 
   const handleClientsFetched = useCallback(() => {
-    // Switch to clients view and reload
     setCurrentView("clients")
     loadAllClients()
   }, [loadAllClients])
+
+  // Get unique categories from current clients (split multi-category values)
+  const categories = useMemo(() => {
+    const cats = new Set<string>()
+    clients.forEach((client) => {
+      if (client.category) {
+        // Split by semicolon in case multiple categories
+        const categoryList = client.category.split(';').map(c => c.trim()).filter(c => c)
+        categoryList.forEach(cat => cats.add(cat))
+      }
+    })
+    return Array.from(cats).sort()
+  }, [clients])
+
+  const filteredClients = useMemo(() => {
+    return clients.filter((client) => {
+      // Location/search filter
+      if (searchLocation && searchLocation.trim()) {
+        const search = searchLocation.toLowerCase()
+        const matchesSearch = 
+          client.name.toLowerCase().includes(search) ||
+          client.address.toLowerCase().includes(search) ||
+          (client.category && client.category.toLowerCase().includes(search))
+        if (!matchesSearch) return false
+      }
+
+      // Category filter
+      const categoryMatch = filters.category === "all" || client.category === filters.category
+      
+      // Status filter
+      const statusMatch = filters.status === "all" || client.status === filters.status
+      
+      // Website filter
+      const websiteMatch =
+        filters.website === "all" ||
+        (filters.website === "yes" && client.hasWebsite) ||
+        (filters.website === "no" && !client.hasWebsite)
+      
+      // Phone filter
+      const phoneMatch =
+        filters.phone === "all" ||
+        (filters.phone === "yes" && client.hasPhone) ||
+        (filters.phone === "no" && !client.hasPhone)
+      
+      // Email filter
+      const emailMatch =
+        filters.email === "all" ||
+        (filters.email === "yes" && client.hasEmail) ||
+        (filters.email === "no" && !client.hasEmail)
+
+      return categoryMatch && statusMatch && websiteMatch && phoneMatch && emailMatch
+    })
+  }, [clients, filters, searchLocation])
+
+  const handleSearch = useCallback(
+    async (location: string) => {
+      setSearchLocation(location)
+      // Filtering is done client-side via useMemo above
+    },
+    [],
+  )
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -203,62 +150,48 @@ export function ClientFinderApp() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {currentView === "fetch" ? (
-          /* Fetch Clients View */
           <div className="flex-1 overflow-y-auto py-8">
             <FetchClients onClientsFetched={handleClientsFetched} />
           </div>
         ) : (
-          /* Clients View */
-          <>
-            {/* Header with Search */}
-            <header className="bg-white border-b border-gray-200 shadow-sm">
-              <div className="px-4 lg:px-6 py-3 lg:py-6">
-                <div className="mb-2 lg:mb-4">
-                  <h2 className="text-lg lg:text-2xl font-bold text-gray-900">My Clients</h2>
-                  <p className="text-xs lg:text-base text-gray-600 mt-0.5 lg:mt-1 hidden sm:block">Search and manage your clients database</p>
+          <div className="flex flex-col h-full bg-background">
+            {/* Header */}
+            <header className="bg-white border-b border-border shadow-sm">
+              <div className="px-4 py-4 sm:px-6 sm:py-6">
+                <div className="mb-4">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-foreground">My Clients</h1>
+                  <p className="text-muted-foreground text-sm sm:text-base mt-1">
+                    Search and discover businesses by category and location
+                  </p>
                 </div>
-                <div className="space-y-2 lg:space-y-4">
-                  <SearchBar onSearch={(query) => handleSearch(query)} isLoading={loading} />
-                  <StatusFilter selectedStatus={selectedStatus} onStatusChange={handleStatusChange} />
-                  <AdvancedFilters 
-                    filters={advancedFilters} 
-                    onFiltersChange={handleAdvancedFiltersChange}
-                    onClearFilters={handleClearFilters}
-                  />
-                </div>
+                <SearchBar onSearch={handleSearch} isLoading={loading} />
               </div>
             </header>
 
             {/* Error Message */}
-            {error && (
-              <div className="px-4 lg:px-6 py-4">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 lg:p-4 text-sm lg:text-base text-red-800">
-                  {error}
-                </div>
-              </div>
-            )}
+            {error && <div className="px-4 py-3 sm:px-6 bg-red-50 border-b border-red-200 text-red-800 text-sm">{error}</div>}
 
-            {/* Main Content Area */}
-            <main className="flex-1 overflow-hidden lg:overflow-hidden">
-              <div className="h-full flex flex-col lg:flex-row gap-4 p-4 lg:p-6">
-                {/* Map View - Hidden on mobile, shown on desktop */}
-                <div className="hidden lg:flex flex-1 rounded-lg overflow-hidden border border-gray-200 shadow bg-white">
-                  <MapView clients={clients} selectedClient={selectedClient} />
+            {/* Main Content */}
+            <main className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+              {/* Left: Filter Panel */}
+              <aside className="hidden lg:block w-80 border-r border-border bg-white overflow-y-auto">
+                <div className="sticky top-0 bg-white p-6 border-b border-border">
+                  <h2 className="text-lg font-semibold text-foreground mb-4">Filters</h2>
+                  <FilterPanel filters={filters} onFilterChange={setFilters} categories={categories} />
                 </div>
+              </aside>
 
-                {/* Client List - Full width on mobile, fixed width on desktop */}
-                <div className="flex-1 lg:w-96 lg:flex-none rounded-lg overflow-hidden border border-gray-200 shadow bg-white flex flex-col">
-                  <ClientList
-                    clients={clients}
-                    selectedClient={selectedClient}
-                    onSelectClient={setSelectedClient}
-                    searchQuery={searchQuery}
-                    isLoading={loading}
-                  />
-                </div>
+              {/* Right: Client List */}
+              <div className="flex-1 overflow-y-auto">
+                <ClientList
+                  clients={filteredClients}
+                  selectedClient={selectedClient}
+                  onSelectClient={setSelectedClient}
+                  isLoading={loading}
+                />
               </div>
             </main>
-          </>
+          </div>
         )}
       </div>
     </div>

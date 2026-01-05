@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
           data: {
             placeId: properties.place_id,
             name: properties.name || properties.address_line1 || "Unknown",
-            category: properties.categories?.[0] || category || null,
+            category: properties.categories?.join('; ') || category || null,
             address: properties.formatted || properties.address_line1 || "Unknown",
             street: properties.street || properties.address_line1 || null,
             city: properties.city || null,
