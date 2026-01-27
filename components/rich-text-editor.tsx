@@ -27,13 +27,21 @@ export function RichTextEditor({ value, onChange, placeholder = "Email content" 
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
   const [linkText, setLinkText] = useState('')
-  const [isInitialized, setIsInitialized] = useState(false)
+  const contentRef = useRef(value)
 
-  // Set initial content when component mounts or value changes
+  // Set initial content when component mounts
   useEffect(() => {
-    if (editorRef.current && value) {
+    if (editorRef.current && !editorRef.current.innerHTML && value) {
       editorRef.current.innerHTML = value
-      setIsInitialized(true)
+      contentRef.current = value
+    }
+  }, [])
+
+  // Update when value prop changes (external changes like template selection)
+  useEffect(() => {
+    if (editorRef.current && value !== contentRef.current) {
+      editorRef.current.innerHTML = value
+      contentRef.current = value
     }
   }, [value])
 
@@ -65,8 +73,14 @@ export function RichTextEditor({ value, onChange, placeholder = "Email content" 
 
   const handleContentChange = () => {
     if (editorRef.current) {
-      onChange(editorRef.current.innerHTML)
+      const newContent = editorRef.current.innerHTML
+      onChange(newContent)
+      contentRef.current = newContent
     }
+  }
+
+  const handleInput = () => {
+    handleContentChange()
   }
 
   return (
@@ -200,8 +214,9 @@ export function RichTextEditor({ value, onChange, placeholder = "Email content" 
       {/* Editor Area */}
       <div
         ref={editorRef}
+        dir="ltr"
         contentEditable
-        onInput={handleContentChange}
+        onInput={handleInput}
         suppressContentEditableWarning
         className="min-h-80 p-4 focus:outline-none overflow-auto text-base leading-relaxed"
         style={{
@@ -209,8 +224,15 @@ export function RichTextEditor({ value, onChange, placeholder = "Email content" 
         }}
         onPaste={(e) => {
           e.preventDefault()
+          // Try to get HTML first, fall back to plain text
+          const html = e.clipboardData.getData('text/html')
           const text = e.clipboardData.getData('text/plain')
-          document.execCommand('insertText', false, text)
+          
+          if (html) {
+            document.execCommand('insertHTML', false, html)
+          } else if (text) {
+            document.execCommand('insertText', false, text)
+          }
         }}
       >
         {!value && <div className="text-gray-400">{placeholder}</div>}
