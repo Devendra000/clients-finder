@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import { X, Send, FileText, Paperclip } from "lucide-react"
 import type { Client, EmailTemplate, TemplateTargetType } from "@/types/client"
 import { RichTextEditor } from "./rich-text-editor"
+import { AlertDialog } from "./alert-dialog"
 
 interface EmailModalProps {
   client: Client
@@ -20,6 +21,10 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
   const [sending, setSending] = useState(false)
   const [attachments, setAttachments] = useState<string[]>([])
   const [useBrevo, setUseBrevo] = useState(false)
+  const [alertOpen, setAlertOpen] = useState(false)
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('info')
+  const [alertTitle, setAlertTitle] = useState('')
+  const [alertMessage, setAlertMessage] = useState('')
   const isDevelopment = process.env.NODE_ENV === 'development'
 
   useEffect(() => {
@@ -70,11 +75,60 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
       .replace(/\{\{CLIENT_STATE\}\}/g, client.state || '')
   }
 
-  const handleSend = () => {
-    // Convert HTML body to plain text for email client
+  const handleSend = async () => {
+    if (!client.email) {
+      setAlertType('error')
+      setAlertTitle('Error')
+      setAlertMessage('Client email address is required')
+      setAlertOpen(true)
+      return
+    }
+
+    // If Brevo is selected, send via API
+    if (useBrevo && isDevelopment) {
+      const plainTextBody = htmlToPlainText(body)
+      setSending(true)
+      try {
+        const response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: client.email,
+            subject: subject,
+            body: plainTextBody,
+            clientName: client.name,
+            clientEmail: client.email,
+            useBrevo: true
+          })
+        })
+
+        if (response.ok) {
+          setAlertType('success')
+          setAlertTitle('Email Sent')
+          setAlertMessage(`Email sent to ${client.email}`)
+          setAlertOpen(true)
+          handleReset()
+          onClose()
+        } else {
+          const error = await response.json()
+          setAlertType('error')
+          setAlertTitle('Error')
+          setAlertMessage(`Error sending email: ${error.error || 'Unknown error'}`)
+          setAlertOpen(true)
+        }
+      } catch (error) {
+        setAlertType('error')
+        setAlertTitle('Error')
+        setAlertMessage(`Error sending email: ${error instanceof Error ? error.message : 'Unknown error'}`)
+        setAlertOpen(true)
+      } finally {
+        setSending(false)
+      }
+      return
+    }
+
+    // Otherwise open default email client
     const plainTextBody = htmlToPlainText(body)
-    
-    // Open default email client with pre-filled content
     const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainTextBody)}`
     window.location.href = mailtoLink
     onClose()
@@ -125,13 +179,22 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
       })
 
       if (response.ok) {
-        alert(`✓ Test email sent to ${testEmail}`)
+        setAlertType('success')
+        setAlertTitle('Email Sent')
+        setAlertMessage(`Test email sent to ${testEmail}`)
+        setAlertOpen(true)
       } else {
         const error = await response.json()
-        alert(`✗ Error sending test email: ${error.error || 'Unknown error'}`)
+        setAlertType('error')
+        setAlertTitle('Error')
+        setAlertMessage(`Error sending test email: ${error.error || 'Unknown error'}`)
+        setAlertOpen(true)
       }
     } catch (error) {
-      alert(`✗ Error sending test email: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setAlertType('error')
+      setAlertTitle('Error')
+      setAlertMessage(`Error sending test email: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setAlertOpen(true)
     } finally {
       setSending(false)
     }
@@ -293,15 +356,23 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
             )}
             <button
               onClick={handleSend}
-              disabled={!subject || !body || !client.email}
+              disabled={!subject || !body || !client.email || sending}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="h-4 w-4" />
-              Send Email
+              {sending ? 'Sending...' : `Send${useBrevo ? ' (Brevo)' : ' Email'}`}
             </button>
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        isOpen={alertOpen}
+        type={alertType}
+        title={alertTitle}
+        message={alertMessage}
+        onClose={() => setAlertOpen(false)}
+      />
     </div>
   )
 }

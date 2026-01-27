@@ -112,9 +112,6 @@ async function sendViaBrevo(
     const htmlContent = `
       <html>
         <body>
-          <p><strong>Client:</strong> ${clientName}</p>
-          <p><strong>Client Email:</strong> ${clientEmail}</p>
-          <hr />
           <pre style="font-family: Arial, sans-serif; white-space: pre-wrap; word-wrap: break-word;">
 ${body}
           </pre>
