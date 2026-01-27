@@ -3,14 +3,6 @@ import nodemailer from 'nodemailer'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
-  // Only allow in development
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json(
-      { error: 'This endpoint is only available in development mode' },
-      { status: 403 }
-    )
-  }
-
   try {
     const { to, subject, body, clientId, clientName, clientEmail, useBrevo } = await request.json()
 

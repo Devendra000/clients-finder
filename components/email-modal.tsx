@@ -321,20 +321,18 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
           </button>
 
           {/* Brevo Toggle */}
-          {isDevelopment && (
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg">
-              <input
-                type="checkbox"
-                id="useBrevo"
-                checked={useBrevo}
-                onChange={(e) => setUseBrevo(e.target.checked)}
-                className="w-4 h-4 cursor-pointer"
-              />
-              <label htmlFor="useBrevo" className="text-sm text-gray-700 cursor-pointer">
-                Use Brevo
-              </label>
-            </div>
-          )}
+          <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg">
+            <input
+              type="checkbox"
+              id="useBrevo"
+              checked={useBrevo}
+              onChange={(e) => setUseBrevo(e.target.checked)}
+              className="w-4 h-4 cursor-pointer"
+            />
+            <label htmlFor="useBrevo" className="text-sm text-gray-700 cursor-pointer">
+              Use Brevo
+            </label>
+          </div>
 
           <div className="flex gap-2">
             <button
