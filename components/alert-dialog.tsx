@@ -64,7 +64,7 @@ export function AlertDialog({
   }
 
   return (
-    <div className="fixed inset-0 bg-transparent flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-gradient-to-br from-black/10 to-black/20 backdrop-blur-sm flex items-center justify-center z-50">
       <div className={`bg-white rounded-lg shadow-lg max-w-md w-full mx-4 border ${bgColorMap[type]}`}>
         <div className="p-6">
           <div className="flex items-start gap-4">
