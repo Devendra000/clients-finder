@@ -17,7 +17,10 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sending, setSending] = useState(false)
   const [attachments, setAttachments] = useState<string[]>([])
+  const [useBrevo, setUseBrevo] = useState(false)
+  const isDevelopment = process.env.NODE_ENV === 'development'
 
   useEffect(() => {
     if (isOpen) {
@@ -100,6 +103,38 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
     setSubject('')
     setBody('')
     setAttachments([])
+  }
+
+  const handleTestSend = async () => {
+    const plainTextBody = htmlToPlainText(body)
+    const testEmail = process.env.NEXT_PUBLIC_TEST_EMAIL || 'dev20581114@gmail.com'
+    
+    setSending(true)
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: testEmail,
+          subject: `[TEST - ${client.name}] ${subject}`,
+          body: plainTextBody,
+          clientName: client.name,
+          clientEmail: client.email,
+          useBrevo: useBrevo
+        })
+      })
+
+      if (response.ok) {
+        alert(`✓ Test email sent to ${testEmail}`)
+      } else {
+        const error = await response.json()
+        alert(`✗ Error sending test email: ${error.error || 'Unknown error'}`)
+      }
+    } catch (error) {
+      alert(`✗ Error sending test email: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setSending(false)
+    }
   }
 
   const getFileNameFromUrl = (url: string) => {
@@ -222,6 +257,23 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
           >
             Reset
           </button>
+
+          {/* Brevo Toggle */}
+          {isDevelopment && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg">
+              <input
+                type="checkbox"
+                id="useBrevo"
+                checked={useBrevo}
+                onChange={(e) => setUseBrevo(e.target.checked)}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <label htmlFor="useBrevo" className="text-sm text-gray-700 cursor-pointer">
+                Use Brevo
+              </label>
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button
               onClick={onClose}
@@ -229,6 +281,16 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
             >
               Cancel
             </button>
+            {isDevelopment && (
+              <button
+                onClick={handleTestSend}
+                disabled={!subject || !body || sending}
+                className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                <Send className="h-4 w-4" />
+                {sending ? 'Sending...' : `Test Send${useBrevo ? ' (Brevo)' : ''}`}
+              </button>
+            )}
             <button
               onClick={handleSend}
               disabled={!subject || !body || !client.email}
