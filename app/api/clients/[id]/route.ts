@@ -9,7 +9,7 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { status, notes } = body
+    const { status } = body
 
     // Build update data
     const updateData: any = {}
@@ -23,10 +23,6 @@ export async function PATCH(
         )
       }
       updateData.status = status
-    }
-    
-    if (notes !== undefined) {
-      updateData.notes = notes
     }
 
     // Update client
@@ -66,6 +62,13 @@ export async function GET(
 
     const client = await prisma.client.findUnique({
       where: { id },
+      include: {
+        notes: {
+          orderBy: {
+            createdAt: 'desc'
+          }
+        }
+      }
     })
 
     if (!client) {

@@ -42,12 +42,13 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { name, subject, body: templateBody, targetType } = body
+    const { name, subject, body: templateBody, targetType, attachments } = body
 
     const updateData: any = {}
     if (name !== undefined) updateData.name = name
     if (subject !== undefined) updateData.subject = subject
     if (templateBody !== undefined) updateData.body = templateBody
+    if (attachments !== undefined) updateData.attachments = attachments
     if (targetType !== undefined) {
       if (!Object.values(TemplateTargetType).includes(targetType)) {
         return NextResponse.json(

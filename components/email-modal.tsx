@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Send, FileText } from "lucide-react"
+import { X, Send, FileText, Paperclip } from "lucide-react"
 import type { Client, EmailTemplate, TemplateTargetType } from "@/types/client"
 
 interface EmailModalProps {
@@ -16,6 +16,7 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
+  const [attachments, setAttachments] = useState<string[]>([])
 
   useEffect(() => {
     if (isOpen) {
@@ -51,6 +52,7 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
     
     setSubject(replacedSubject)
     setBody(replacedBody)
+    setAttachments(template.attachments || [])
   }
 
   const replacePlaceholders = (text: string): string => {
@@ -75,6 +77,11 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
     setSelectedTemplate(null)
     setSubject('')
     setBody('')
+    setAttachments([])
+  }
+
+  const getFileNameFromUrl = (url: string) => {
+    return url.split('/').pop() || url
   }
 
   if (!isOpen) return null
@@ -159,6 +166,32 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+
+          {/* Attachments */}
+          {attachments.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Attachments ({attachments.length})
+              </label>
+              <div className="space-y-2">
+                {attachments.map((url, index) => (
+                  <a
+                    key={index}
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 text-sm text-blue-600 hover:bg-gray-100 transition-colors"
+                  >
+                    <Paperclip className="h-4 w-4 flex-shrink-0" />
+                    <span className="truncate">{getFileNameFromUrl(url)}</span>
+                  </a>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Note: Attachments will open in browser. Download and attach to your email manually.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

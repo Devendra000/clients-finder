@@ -26,7 +26,7 @@ export interface Client {
   latitude: number
   longitude: number
   status: ClientStatus
-  notes?: string
+  notes?: Note[]
   openingHours?: string
   facilities?: string
   datasource?: string
@@ -35,6 +35,14 @@ export interface Client {
   hasWebsite?: boolean
   hasPhone?: boolean
   hasEmail?: boolean
+}
+
+export interface Note {
+  id: string
+  content: string
+  clientId: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 export interface FilterOptions {
@@ -85,6 +93,7 @@ export interface EmailTemplate {
   subject: string
   body: string
   targetType: TemplateTargetType
+  attachments: string[]
   createdAt: Date
   updatedAt: Date
 }

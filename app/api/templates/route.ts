@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, subject, body: templateBody, targetType } = body
+    const { name, subject, body: templateBody, targetType, attachments } = body
 
     // Validate required fields
     if (!name || !subject || !templateBody || !targetType) {
@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
         name,
         subject,
         body: templateBody,
-        targetType
+        targetType,
+        attachments: attachments || []
       }
     })
 

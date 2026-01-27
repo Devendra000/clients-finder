@@ -15,9 +15,13 @@ import {
   ChevronLeft,
   ChevronRight,
   FileText,
-  Save
+  Save,
+  Plus,
+  Edit,
+  Trash2,
+  X
 } from "lucide-react"
-import type { Client, ClientStatus } from "@/types/client"
+import type { Client, ClientStatus, Note } from "@/types/client"
 import { EmailModal } from "./email-modal"
 
 interface ClientDetailPageProps {
@@ -38,9 +42,11 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
   const [client, setClient] = useState(initialClient)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isNavigating, setIsNavigating] = useState(false)
-  const [notes, setNotes] = useState(initialClient.notes || '')
-  const [isSavingNotes, setIsSavingNotes] = useState(false)
-  const [notesSaved, setNotesSaved] = useState(false)
+  const [notes, setNotes] = useState<Note[]>(initialClient.notes || [])
+  const [newNoteContent, setNewNoteContent] = useState('')
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteContent, setEditingNoteContent] = useState('')
+  const [isSavingNote, setIsSavingNote] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
 
   // Debug log
@@ -92,6 +98,83 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
     } finally {
       setIsSavingNotes(false)
     }
+  }
+
+  const handleAddNote = async () => {
+    if (!newNoteContent.trim()) return
+
+    setIsSavingNote(true)
+    try {
+      const response = await fetch(`/api/clients/${client.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newNoteContent })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to add note')
+      }
+
+      const data = await response.json()
+      setNotes([data.note, ...notes])
+      setNewNoteContent('')
+    } catch (error) {
+      console.error('Error adding note:', error)
+      alert('Failed to add note')
+    } finally {
+      setIsSavingNote(false)
+    }
+  }
+
+  const handleEditNote = async (noteId: string) => {
+    if (!editingNoteContent.trim()) return
+
+    setIsSavingNote(true)
+    try {
+      const response = await fetch(`/api/clients/${client.id}/notes/${noteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: editingNoteContent })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update note')
+      }
+
+      const data = await response.json()
+      setNotes(notes.map(n => n.id === noteId ? data.note : n))
+      setEditingNoteId(null)
+      setEditingNoteContent('')
+    } catch (error) {
+      console.error('Error updating note:', error)
+      alert('Failed to update note')
+    } finally {
+      setIsSavingNote(false)
+    }
+  }
+
+  const handleDeleteNote = async (noteId: string) => {
+    if (!confirm('Are you sure you want to delete this note?')) return
+
+    try {
+      const response = await fetch(`/api/clients/${client.id}/notes/${noteId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete note')
+      }
+
+      setNotes(notes.filter(n => n.id !== noteId))
+    } catch (error) {
+      console.error('Error deleting note:', error)
+      alert('Failed to delete note')
+    }
+  }
+
+  const startEditNote = (note: Note) => {
+    setEditingNoteId(note.id)
+    setEditingNoteContent(note.content)
   }
 
   const handleNavigation = async (direction: 'next' | 'prev') => {
@@ -307,30 +390,92 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                   <FileText className="h-5 w-5" />
-                  Notes
+                  Notes ({notes.length})
                 </h2>
-                {notesSaved && (
-                  <span className="text-sm text-green-600 flex items-center gap-1">
-                    <CheckCircle className="h-4 w-4" />
-                    Saved
-                  </span>
-                )}
               </div>
-              <div className="space-y-3">
+
+              {/* Add New Note */}
+              <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
                 <textarea
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add notes about this client..."
-                  className="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+                  value={newNoteContent}
+                  onChange={(e) => setNewNoteContent(e.target.value)}
+                  placeholder="Add a new note..."
+                  className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
                 />
                 <button
-                  onClick={handleSaveNotes}
-                  disabled={isSavingNotes || notes === client.notes}
+                  onClick={handleAddNote}
+                  disabled={isSavingNote || !newNoteContent.trim()}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                 >
-                  <Save className="h-4 w-4" />
-                  {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                  <Plus className="h-4 w-4" />
+                  {isSavingNote ? 'Adding...' : 'Add Note'}
                 </button>
+              </div>
+
+              {/* Notes List */}
+              <div className="space-y-4">
+                {notes.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No notes yet. Add your first note above.</p>
+                ) : (
+                  notes.map((note) => (
+                    <div key={note.id} className="bg-gray-50 rounded-lg p-4">
+                      {editingNoteId === note.id ? (
+                        <div className="space-y-3">
+                          <textarea
+                            value={editingNoteContent}
+                            onChange={(e) => setEditingNoteContent(e.target.value)}
+                            className="w-full min-h-[100px] p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleEditNote(note.id)}
+                              disabled={isSavingNote}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 disabled:bg-gray-300 transition-colors"
+                            >
+                              <Save className="h-3 w-3" />
+                              Save
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingNoteId(null)
+                                setEditingNoteContent('')
+                              }}
+                              className="flex items-center gap-2 px-3 py-1.5 bg-gray-200 text-gray-700 text-sm rounded hover:bg-gray-300 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <p className="text-xs text-gray-500">
+                              {new Date(note.createdAt).toLocaleString()}
+                            </p>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => startEditNote(note)}
+                                className="p-1.5 text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                                title="Edit note"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteNote(note.id)}
+                                className="p-1.5 text-red-600 hover:bg-red-100 rounded transition-colors"
+                                title="Delete note"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <p className="text-gray-900 whitespace-pre-wrap">{note.content}</p>
+                        </>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

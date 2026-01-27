@@ -19,7 +19,7 @@ model Client {
   latitude    Float
   longitude   Float
   status      ClientStatus @default(PENDING)
-  notes       String?      @db.Text
+  notes       Note[]
 
   // Additional Geoapify fields
   openingHours String?
@@ -41,4 +41,16 @@ enum ClientStatus {
   REJECTED
   CONTACTED
   CLOSED
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  content   String   @db.Text
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@map("notes")
 }

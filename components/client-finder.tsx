@@ -185,7 +185,11 @@ export function ClientFinderApp() {
       <Sidebar 
         currentView={currentView} 
         onViewChange={(view) => {
-          setCurrentView(view)
+          if (view === "templates") {
+            window.location.href = "/templates"
+          } else {
+            setCurrentView(view)
+          }
           setIsMobileMenuOpen(false)
         }}
         isMobileMenuOpen={isMobileMenuOpen}

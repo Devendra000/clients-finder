@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Edit, Trash2, Save, X } from "lucide-react"
+import { Plus, Edit, Trash2, Save, X, Upload, Paperclip, XCircle } from "lucide-react"
 import type { EmailTemplate, TemplateTargetType } from "@/types/client"
 
 export function TemplateManager() {
@@ -14,8 +14,11 @@ export function TemplateManager() {
     name: '',
     subject: '',
     body: '',
-    targetType: 'ALL' as TemplateTargetType
+    targetType: 'ALL' as TemplateTargetType,
+    attachments: [] as string[]
   })
+
+  const [uploadingFile, setUploadingFile] = useState(false)
 
   useEffect(() => {
     loadTemplates()
@@ -102,7 +105,8 @@ export function TemplateManager() {
       name: template.name,
       subject: template.subject,
       body: template.body,
-      targetType: template.targetType
+      targetType: template.targetType,
+      attachments: template.attachments || []
     })
     setIsCreating(false)
   }
@@ -112,10 +116,62 @@ export function TemplateManager() {
       name: '',
       subject: '',
       body: '',
-      targetType: 'ALL' as TemplateTargetType
+      targetType: 'ALL' as TemplateTargetType,
+      attachments: []
     })
     setIsCreating(false)
     setEditingId(null)
+  }
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploadingFile(true)
+    try {
+      const uploadFormData = new FormData()
+      uploadFormData.append('file', file)
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('admin_token') || ''}`
+        },
+        body: uploadFormData
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Upload failed')
+      }
+
+      const data = await response.json()
+      if (data.success) {
+        setFormData({
+          ...formData,
+          attachments: [...formData.attachments, data.data.url]
+        })
+      } else {
+        throw new Error(data.error || 'Upload failed')
+      }
+    } catch (error) {
+      console.error('Upload error:', error)
+      alert(error instanceof Error ? error.message : 'Failed to upload file')
+    } finally {
+      setUploadingFile(false)
+      e.target.value = '' // Reset input
+    }
+  }
+
+  const removeAttachment = (index: number) => {
+    setFormData({
+      ...formData,
+      attachments: formData.attachments.filter((_, i) => i !== index)
+    })
+  }
+
+  const getFileNameFromUrl = (url: string) => {
+    return url.split('/').pop() || url
   }
 
   const targetTypeLabels = {
@@ -129,28 +185,30 @@ export function TemplateManager() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Email Templates</h1>
-        <button
-          onClick={() => {
-            resetForm()
-            setIsCreating(true)
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          New Template
-        </button>
-      </div>
+    <div className="h-full flex flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-6xl mx-auto p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">Email Templates</h1>
+            <button
+              onClick={() => {
+                resetForm()
+                setIsCreating(true)
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              New Template
+            </button>
+          </div>
 
-      {/* Create/Edit Form */}
-      {(isCreating || editingId) && (
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-lg font-semibold mb-4">
-            {isCreating ? 'Create New Template' : 'Edit Template'}
-          </h2>
-          <div className="space-y-4">
+          {/* Create/Edit Form */}
+          {(isCreating || editingId) && (
+            <div className="bg-white rounded-lg shadow p-6 mb-6">
+              <h2 className="text-lg font-semibold mb-4">
+                {isCreating ? 'Create New Template' : 'Edit Template'}
+              </h2>
+              <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Template Name
@@ -208,6 +266,54 @@ export function TemplateManager() {
               </p>
             </div>
 
+            {/* File Attachments */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Attachments (PDFs, Images, Documents)
+              </label>
+              
+              {/* Upload Button */}
+              <div className="mb-3">
+                <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer w-fit">
+                  <Upload className="h-4 w-4" />
+                  {uploadingFile ? 'Uploading...' : 'Upload File'}
+                  <input
+                    type="file"
+                    onChange={handleFileUpload}
+                    disabled={uploadingFile}
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Attachments List */}
+              {formData.attachments.length > 0 && (
+                <div className="space-y-2">
+                  {formData.attachments.map((url, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
+                      <Paperclip className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-sm text-blue-600 hover:underline truncate"
+                      >
+                        {getFileNameFromUrl(url)}
+                      </a>
+                      <button
+                        onClick={() => removeAttachment(index)}
+                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                        title="Remove attachment"
+                      >
+                        <XCircle className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-2">
               <button
                 onClick={() => isCreating ? handleCreate() : handleUpdate(editingId!)}
@@ -226,17 +332,17 @@ export function TemplateManager() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+            </div>
+          )}
 
-      {/* Templates List */}
-      <div className="space-y-4">
-        {templates.length === 0 ? (
-          <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
-            No templates yet. Create your first template to get started!
-          </div>
-        ) : (
-          templates.map((template) => (
+          {/* Templates List */}
+          <div className="space-y-4">
+            {templates.length === 0 ? (
+              <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                No templates yet. Create your first template to get started!
+              </div>
+            ) : (
+              templates.map((template) => (
             <div key={template.id} className="bg-white rounded-lg shadow p-6">
               <div className="flex items-start justify-between mb-3">
                 <div>
@@ -273,10 +379,31 @@ export function TemplateManager() {
                     {template.body}
                   </p>
                 </div>
+                {template.attachments && template.attachments.length > 0 && (
+                  <div>
+                    <span className="font-medium text-gray-700">Attachments:</span>
+                    <div className="mt-2 space-y-1">
+                      {template.attachments.map((url, index) => (
+                        <a
+                          key={index}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-sm text-blue-600 hover:underline"
+                        >
+                          <Paperclip className="h-3 w-3" />
+                          {getFileNameFromUrl(url)}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          ))
-        )}
+              ))
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

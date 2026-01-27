@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { ClientDetailPage } from "@/components/client-detail-page"
+import { Sidebar } from "@/components/sidebar"
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -33,5 +34,23 @@ export default async function ClientPage({ params }: PageProps) {
     notFound()
   }
 
-  return <ClientDetailPage client={client} />
+  return (
+    <div className="flex h-screen bg-gray-50">
+      <Sidebar 
+        currentView="clients"
+        onViewChange={(view) => {
+          if (view === "clients") {
+            window.location.href = "/"
+          } else if (view === "fetch") {
+            window.location.href = "/?view=fetch"
+          } else if (view === "templates") {
+            window.location.href = "/?view=templates"
+          }
+        }}
+      />
+      <div className="flex-1 overflow-hidden">
+        <ClientDetailPage client={client} />
+      </div>
+    </div>
+  )
 }
