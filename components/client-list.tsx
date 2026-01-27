@@ -250,11 +250,11 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading,
                           e.stopPropagation()
                           setEmailModalClient(client)
                         }}
-                        className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100 transition-colors flex-shrink-0"
+                        className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100 transition-colors"
                         title={client.email}
                       >
                         <MailIcon className="h-3 w-3 flex-shrink-0" />
-                        <span className="text-[10px] sm:text-xs">{client.email}</span>
+                        <span className="text-xs">{client.email}</span>
                       </button>
                     )}
                     {client.hasWebsite && client.website && (
