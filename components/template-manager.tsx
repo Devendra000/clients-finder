@@ -64,12 +64,21 @@ export function TemplateManager() {
   const loadTemplates = async () => {
     try {
       const response = await fetch('/api/templates')
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
       const data = await response.json()
       if (data.success) {
         setTemplates(data.templates)
       }
     } catch (error) {
       console.error('Error loading templates:', error)
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to load templates'
+      })
     } finally {
       setLoading(false)
     }

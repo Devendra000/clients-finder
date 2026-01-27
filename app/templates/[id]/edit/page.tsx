@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/sidebar'
 import { Save, X, Upload, Paperclip, XCircle } from 'lucide-react'
 import { TargetTypeModal } from '@/components/target-type-modal'
 import { AlertDialog, type AlertType } from '@/components/alert-dialog'
+import { RichTextEditor } from '@/components/rich-text-editor'
 import type { EmailTemplate, TemplateTargetType, CustomTargetType } from "@/types/client"
 
 export default function EditTemplatePage() {
@@ -53,8 +54,10 @@ export default function EditTemplatePage() {
   }
 
   useEffect(() => {
-    loadTemplate()
-    loadCustomTargets()
+    if (templateId) {
+      loadTemplate()
+      loadCustomTargets()
+    }
   }, [templateId])
 
   const loadCustomTargets = async () => {
@@ -334,13 +337,10 @@ export default function EditTemplatePage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Email Body *
               </label>
-              <textarea
-                name="body"
+              <RichTextEditor
                 value={formData.body}
-                onChange={handleInputChange}
+                onChange={(body) => setFormData(prev => ({ ...prev, body }))}
                 placeholder="Email content"
-                rows={12}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
               />
             </div>
 
@@ -427,12 +427,47 @@ export default function EditTemplatePage() {
                 {/* Email Body */}
                 <div className="p-6 text-sm text-gray-700 leading-relaxed">
                   {formData.body ? (
-                    <div className="whitespace-pre-wrap font-mono text-xs bg-gray-50 p-4 rounded border border-gray-200">
-                      {formData.body}
-                    </div>
+                    <div
+                      className="email-preview"
+                      dangerouslySetInnerHTML={{ __html: formData.body }}
+                      style={{
+                        fontFamily: 'Arial, sans-serif',
+                        fontSize: '14px',
+                        lineHeight: '1.6',
+                        color: '#333'
+                      }}
+                    />
                   ) : (
                     <div className="text-gray-400 italic">Email body will appear here...</div>
                   )}
+                  <style>{`
+                    .email-preview * {
+                      max-width: 100%;
+                    }
+                    .email-preview div {
+                      margin: 8px 0;
+                    }
+                    .email-preview br {
+                      line-height: 1.6;
+                    }
+                    .email-preview b, .email-preview strong {
+                      font-weight: bold;
+                      color: #000;
+                    }
+                    .email-preview i, .email-preview em {
+                      font-style: italic;
+                    }
+                    .email-preview u {
+                      text-decoration: underline;
+                    }
+                    .email-preview a {
+                      color: #1976d2;
+                      text-decoration: none;
+                    }
+                    .email-preview a:hover {
+                      text-decoration: underline;
+                    }
+                  `}</style>
                 </div>
 
                 {/* Attachments Preview */}
