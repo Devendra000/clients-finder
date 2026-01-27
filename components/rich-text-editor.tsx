@@ -31,11 +31,11 @@ export function RichTextEditor({ value, onChange, placeholder = "Email content" 
 
   // Set initial content when component mounts or value changes
   useEffect(() => {
-    if (editorRef.current && value && !isInitialized) {
+    if (editorRef.current && value) {
       editorRef.current.innerHTML = value
       setIsInitialized(true)
     }
-  }, [value, isInitialized])
+  }, [value])
 
   const executeCommand = (command: string, value?: string) => {
     document.execCommand(command, false, value)

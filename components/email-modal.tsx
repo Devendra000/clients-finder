@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { X, Send, FileText, Paperclip } from "lucide-react"
 import type { Client, EmailTemplate, TemplateTargetType } from "@/types/client"
+import { RichTextEditor } from "./rich-text-editor"
 
 interface EmailModalProps {
   client: Client
@@ -67,10 +68,31 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
   }
 
   const handleSend = () => {
+    // Convert HTML body to plain text for email client
+    const plainTextBody = htmlToPlainText(body)
+    
     // Open default email client with pre-filled content
-    const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    const mailtoLink = `mailto:${client.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainTextBody)}`
     window.location.href = mailtoLink
     onClose()
+  }
+
+  const htmlToPlainText = (html: string): string => {
+    // Create a temporary div to parse HTML
+    const temp = document.createElement('div')
+    temp.innerHTML = html
+    
+    // Get text content
+    let text = temp.textContent || temp.innerText || ''
+    
+    // Clean up extra whitespace and empty lines
+    text = text
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .join('\n')
+    
+    return text
   }
 
   const handleReset = () => {
@@ -155,15 +177,13 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
 
           {/* Body */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               Message
             </label>
-            <textarea
+            <RichTextEditor
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={setBody}
               placeholder="Enter your message..."
-              rows={12}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 

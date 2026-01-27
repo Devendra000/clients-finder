@@ -7,6 +7,7 @@ import { Save, X, Upload, Paperclip, XCircle } from 'lucide-react'
 import { TargetTypeModal } from '@/components/target-type-modal'
 import { AlertDialog, type AlertType } from '@/components/alert-dialog'
 import { RichTextEditor } from '@/components/rich-text-editor'
+import { MediaLightbox } from '@/components/media-lightbox'
 import type { TemplateTargetType, CustomTargetType } from "@/types/client"
 
 export default function CreateTemplatePage() {
@@ -16,6 +17,8 @@ export default function CreateTemplatePage() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [customTargets, setCustomTargets] = useState<CustomTargetType[]>([])
   const [isTargetTypeModalOpen, setIsTargetTypeModalOpen] = useState(false)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [selectedMedia, setSelectedMedia] = useState<{ url: string; fileName: string } | null>(null)
   
   const [alert, setAlert] = useState<{
     isOpen: boolean
@@ -190,6 +193,12 @@ export default function CreateTemplatePage() {
         onClose={() => setIsTargetTypeModalOpen(false)}
         onSuccess={handleTargetTypeCreated}
       />
+      <MediaLightbox
+        isOpen={lightboxOpen}
+        mediaUrl={selectedMedia?.url || ''}
+        fileName={selectedMedia?.fileName}
+        onClose={() => setLightboxOpen(false)}
+      />
       <Sidebar 
         currentView={currentView}
         onViewChange={handleViewChange}
@@ -296,26 +305,62 @@ export default function CreateTemplatePage() {
                 </label>
 
                 {formData.attachments.length > 0 && (
-                  <div className="mb-4 space-y-2">
+                  <div className="mb-4 space-y-3">
+                    <div className="text-sm font-medium text-gray-700">Current Attachments:</div>
                     {formData.attachments.map((attachment, index) => {
                       const fileName = attachment.split('/').pop() || attachment
+                      const isImage = /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(attachment)
+                      
                       return (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between bg-gray-50 p-3 rounded-lg"
-                        >
-                          <div className="flex items-center gap-2">
-                            <Paperclip size={16} className="text-gray-400" />
-                            <span className="text-sm text-gray-700">
-                              {fileName}
-                            </span>
-                          </div>
-                          <button
-                            onClick={() => removeAttachment(index)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <XCircle size={18} />
-                          </button>
+                        <div key={index}>
+                          {isImage ? (
+                            <div className="relative group cursor-pointer" onClick={() => {
+                              setSelectedMedia({ url: attachment, fileName })
+                              setLightboxOpen(true)
+                            }}>
+                              <img
+                                src={attachment}
+                                alt={fileName}
+                                className="h-24 w-24 object-cover rounded-lg border border-gray-300 group-hover:opacity-75 transition-opacity"
+                              />
+                              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <span className="text-white text-xs font-medium bg-black bg-opacity-70 px-2 py-1 rounded">View</span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeAttachment(index)
+                                }}
+                                className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 transition-colors"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div
+                              className="flex items-center justify-between bg-gray-50 p-3 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                              onClick={() => {
+                                setSelectedMedia({ url: attachment, fileName })
+                                setLightboxOpen(true)
+                              }}
+                            >
+                              <div className="flex items-center gap-2 flex-1">
+                                <Paperclip size={16} className="text-gray-400" />
+                                <span className="text-sm text-gray-700 truncate">
+                                  {fileName}
+                                </span>
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  removeAttachment(index)
+                                }}
+                                className="text-red-500 hover:text-red-700 ml-2"
+                              >
+                                <XCircle size={18} />
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
