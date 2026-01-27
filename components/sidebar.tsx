@@ -1,11 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { Database, Search, Plus, MapPin } from "lucide-react"
+import { Database, Search, Plus, MapPin, FileText } from "lucide-react"
 
 interface SidebarProps {
-  currentView: "clients" | "fetch"
-  onViewChange: (view: "clients" | "fetch") => void
+  currentView: "clients" | "fetch" | "templates"
+  onViewChange: (view: "clients" | "fetch" | "templates") => void
   isMobileMenuOpen?: boolean
   onClose?: () => void
 }
@@ -61,6 +61,18 @@ export function Sidebar({ currentView, onViewChange, isMobileMenuOpen = false, o
           >
             <Plus className="h-5 w-5" />
             <span className="font-medium">Fetch New Clients</span>
+          </button>
+
+          <button
+            onClick={() => onViewChange("templates")}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              currentView === "templates"
+                ? "bg-blue-600 text-white"
+                : "text-gray-300 hover:bg-gray-800"
+            }`}
+          >
+            <FileText className="h-5 w-5" />
+            <span className="font-medium">Email Templates</span>
           </button>
         </div>
       </nav>

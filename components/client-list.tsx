@@ -14,6 +14,7 @@ import {
   Check,
 } from "lucide-react"
 import type { Client, FilterOptions } from "@/types/client"
+import { EmailModal } from "./email-modal"
 
 // Helper to format category labels
 const formatCategoryLabel = (category: string | undefined) => {
@@ -83,6 +84,7 @@ const STATUS_STYLES = {
 export function ClientList({ clients, selectedClient, onSelectClient, isLoading, filters }: ClientListProps) {
   const selectedRef = useRef<HTMLDivElement | null>(null)
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null)
+  const [emailModalClient, setEmailModalClient] = useState<Client | null>(null)
 
   useEffect(() => {
     selectedRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" })
@@ -243,15 +245,17 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading,
                       </>
                     )}
                     {client.hasEmail && client.email && (
-                      <a
-                        href={`mailto:${client.email}`}
-                        onClick={(e) => e.stopPropagation()}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEmailModalClient(client)
+                        }}
                         className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100 transition-colors flex-shrink-0"
                         title={client.email}
                       >
                         <MailIcon className="h-3 w-3 flex-shrink-0" />
                         <span className="text-[10px] sm:text-xs">{client.email}</span>
-                      </a>
+                      </button>
                     )}
                     {client.hasWebsite && client.website && (
                       <a
@@ -273,6 +277,13 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading,
           })}
         </div>
       </div>
-    </div>
+      {/* Email Modal */}
+      {emailModalClient && (
+        <EmailModal
+          client={emailModalClient}
+          isOpen={!!emailModalClient}
+          onClose={() => setEmailModalClient(null)}
+        />
+      )}    </div>
   )
 }

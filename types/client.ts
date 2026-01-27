@@ -72,3 +72,19 @@ export interface GeoapifyPlace {
   opening_hours?: string
   facilities?: string[]
 }
+
+export enum TemplateTargetType {
+  ALL = 'ALL',
+  HAS_WEBSITE = 'HAS_WEBSITE',
+  NO_WEBSITE = 'NO_WEBSITE'
+}
+
+export interface EmailTemplate {
+  id: string
+  name: string
+  subject: string
+  body: string
+  targetType: TemplateTargetType
+  createdAt: Date
+  updatedAt: Date
+}

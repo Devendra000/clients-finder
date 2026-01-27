@@ -18,6 +18,7 @@ import {
   Save
 } from "lucide-react"
 import type { Client, ClientStatus } from "@/types/client"
+import { EmailModal } from "./email-modal"
 
 interface ClientDetailPageProps {
   client: Client
@@ -40,6 +41,7 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
   const [notes, setNotes] = useState(initialClient.notes || '')
   const [isSavingNotes, setIsSavingNotes] = useState(false)
   const [notesSaved, setNotesSaved] = useState(false)
+  const [showEmailModal, setShowEmailModal] = useState(false)
 
   // Debug log
   console.log('Client data:', client)
@@ -243,12 +245,12 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
                     <Mail className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-500 mb-1">Email</p>
-                      <a 
-                        href={`mailto:${client.email}`} 
-                        className="text-base text-blue-600 hover:underline font-medium break-all"
+                      <button
+                        onClick={() => setShowEmailModal(true)}
+                        className="text-base text-blue-600 hover:underline font-medium break-all text-left"
                       >
                         {client.email}
-                      </a>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -437,6 +439,15 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
           </div>
         </div>
       </main>
+
+      {/* Email Modal */}
+      {showEmailModal && client.email && (
+        <EmailModal
+          client={client}
+          isOpen={showEmailModal}
+          onClose={() => setShowEmailModal(false)}
+        />
+      )}
     </div>
   )
 }

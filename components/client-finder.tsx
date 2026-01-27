@@ -6,10 +6,11 @@ import { FetchClients } from "./fetch-clients"
 import { SearchBar } from "./search-bar"
 import { ClientList } from "./client-list"
 import { FilterPanel } from "./filter-panel"
+import { TemplateManager } from "./template-manager"
 import type { Client, FilterOptions } from "@/types/client"
 
 export function ClientFinderApp() {
-  const [currentView, setCurrentView] = useState<"clients" | "fetch">("clients")
+  const [currentView, setCurrentView] = useState<"clients" | "fetch" | "templates">("clients")
   const [clients, setClients] = useState<Client[]>([])
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [loading, setLoading] = useState(true)
@@ -196,6 +197,10 @@ export function ClientFinderApp() {
         {currentView === "fetch" ? (
           <div className="flex-1 overflow-y-auto py-8">
             <FetchClients onClientsFetched={handleClientsFetched} />
+          </div>
+        ) : currentView === "templates" ? (
+          <div className="flex-1 overflow-y-auto">
+            <TemplateManager />
           </div>
         ) : (
           <div className="flex flex-col h-full bg-background">

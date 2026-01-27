@@ -1,0 +1,21 @@
+// Email Template models
+// Stores reusable email templates for client outreach
+
+model EmailTemplate {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "No Website - Web Design Offer"
+  subject     String
+  body        String   @db.Text
+  targetType  TemplateTargetType // Filter: hasWebsite, noWebsite, all
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("email_templates")
+}
+
+enum TemplateTargetType {
+  ALL           // Can be used for any client
+  HAS_WEBSITE   // For clients with website
+  NO_WEBSITE    // For clients without website
+}
