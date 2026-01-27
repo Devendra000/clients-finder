@@ -84,7 +84,17 @@ export interface GeoapifyPlace {
 export enum TemplateTargetType {
   ALL = 'ALL',
   HAS_WEBSITE = 'HAS_WEBSITE',
-  NO_WEBSITE = 'NO_WEBSITE'
+  NO_WEBSITE = 'NO_WEBSITE',
+  CUSTOM = 'CUSTOM'
+}
+
+export interface CustomTargetType {
+  id: string
+  name: string
+  description?: string
+  color: string
+  createdAt: Date
+  updatedAt: Date
 }
 
 export interface EmailTemplate {
@@ -93,6 +103,7 @@ export interface EmailTemplate {
   subject: string
   body: string
   targetType: TemplateTargetType
+  customTargetId?: string
   attachments: string[]
   createdAt: Date
   updatedAt: Date

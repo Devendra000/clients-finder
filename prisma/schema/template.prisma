@@ -2,15 +2,16 @@
 // Stores reusable email templates for client outreach
 
 model EmailTemplate {
-  id          String   @id @default(cuid())
-  name        String   // e.g., "No Website - Web Design Offer"
-  subject     String
-  body        String   @db.Text
-  targetType  TemplateTargetType // Filter: hasWebsite, noWebsite, all
-  attachments String[] @default([]) // Array of file URLs
+  id              String   @id @default(cuid())
+  name            String   // e.g., "No Website - Web Design Offer"
+  subject         String
+  body            String   @db.Text
+  targetType      TemplateTargetType // Filter: hasWebsite, noWebsite, all
+  customTargetId  String?  // Optional custom target type
+  attachments     String[] @default([]) // Array of file URLs
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("email_templates")
 }
@@ -19,4 +20,5 @@ enum TemplateTargetType {
   ALL           // Can be used for any client
   HAS_WEBSITE   // For clients with website
   NO_WEBSITE    // For clients without website
+  CUSTOM        // Uses customTargetId
 }

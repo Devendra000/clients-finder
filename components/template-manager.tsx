@@ -1,14 +1,19 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Plus, Edit, Trash2, Save, X, Upload, Paperclip, XCircle } from "lucide-react"
-import type { EmailTemplate, TemplateTargetType } from "@/types/client"
+import type { EmailTemplate, TemplateTargetType, CustomTargetType } from "@/types/client"
+import { TargetTypeModal } from "./target-type-modal"
 
 export function TemplateManager() {
+  const router = useRouter()
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
+  const [customTargets, setCustomTargets] = useState<CustomTargetType[]>([])
   const [isCreating, setIsCreating] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [isTargetTypeModalOpen, setIsTargetTypeModalOpen] = useState(false)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -22,7 +27,20 @@ export function TemplateManager() {
 
   useEffect(() => {
     loadTemplates()
+    loadCustomTargets()
   }, [])
+
+  const loadCustomTargets = async () => {
+    try {
+      const response = await fetch('/api/target-types')
+      const data = await response.json()
+      if (data.success) {
+        setCustomTargets(data.customTargets || [])
+      }
+    } catch (error) {
+      console.error('Error loading custom targets:', error)
+    }
+  }
 
   const loadTemplates = async () => {
     try {
@@ -36,6 +54,10 @@ export function TemplateManager() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleTargetTypeCreated = (newType: CustomTargetType) => {
+    setCustomTargets(prev => [...prev, newType])
   }
 
   const handleCreate = async () => {
@@ -100,15 +122,7 @@ export function TemplateManager() {
   }
 
   const startEdit = (template: EmailTemplate) => {
-    setEditingId(template.id)
-    setFormData({
-      name: template.name,
-      subject: template.subject,
-      body: template.body,
-      targetType: template.targetType,
-      attachments: template.attachments || []
-    })
-    setIsCreating(false)
+    router.push(`/templates/${template.id}/edit`)
   }
 
   const resetForm = () => {
@@ -177,7 +191,8 @@ export function TemplateManager() {
   const targetTypeLabels = {
     ALL: 'All Clients',
     HAS_WEBSITE: 'Clients with Website',
-    NO_WEBSITE: 'Clients without Website'
+    NO_WEBSITE: 'Clients without Website',
+    CUSTOM: 'Custom Target'
   }
 
   if (loading) {
@@ -186,154 +201,23 @@ export function TemplateManager() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      <TargetTypeModal 
+        isOpen={isTargetTypeModalOpen}
+        onClose={() => setIsTargetTypeModalOpen(false)}
+        onSuccess={handleTargetTypeCreated}
+      />
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto p-6">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Email Templates</h1>
             <button
-              onClick={() => {
-                resetForm()
-                setIsCreating(true)
-              }}
+              onClick={() => router.push('/templates/create')}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Plus className="h-4 w-4" />
               New Template
             </button>
           </div>
-
-          {/* Create/Edit Form */}
-          {(isCreating || editingId) && (
-            <div className="bg-white rounded-lg shadow p-6 mb-6">
-              <h2 className="text-lg font-semibold mb-4">
-                {isCreating ? 'Create New Template' : 'Edit Template'}
-              </h2>
-              <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Template Name
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., No Website - Web Design Offer"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Target Type
-              </label>
-              <select
-                value={formData.targetType}
-                onChange={(e) => setFormData({ ...formData, targetType: e.target.value as TemplateTargetType })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value="ALL">All Clients</option>
-                <option value="HAS_WEBSITE">Clients with Website</option>
-                <option value="NO_WEBSITE">Clients without Website</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Subject
-              </label>
-              <input
-                type="text"
-                value={formData.subject}
-                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                placeholder="e.g., Exclusive Web Design Offer for Your Business"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email Body
-              </label>
-              <textarea
-                value={formData.body}
-                onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                placeholder="Dear [Client Name],&#10;&#10;We noticed you don't have a website yet...&#10;&#10;Use {{CLIENT_NAME}}, {{CLIENT_ADDRESS}} as placeholders"
-                rows={10}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Use placeholders: {'{'}{'{'} CLIENT_NAME{'}'}{'}'}, {'{'}{'{'} CLIENT_ADDRESS{'}'}{'}'}, {'{'}{'{'} CLIENT_EMAIL{'}'}{'}'}, {'{'}{'{'} CLIENT_PHONE{'}'}{'}'}, {'{'}{'{'} CLIENT_WEBSITE{'}'}{'}'}
-              </p>
-            </div>
-
-            {/* File Attachments */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Attachments (PDFs, Images, Documents)
-              </label>
-              
-              {/* Upload Button */}
-              <div className="mb-3">
-                <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer w-fit">
-                  <Upload className="h-4 w-4" />
-                  {uploadingFile ? 'Uploading...' : 'Upload File'}
-                  <input
-                    type="file"
-                    onChange={handleFileUpload}
-                    disabled={uploadingFile}
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              {/* Attachments List */}
-              {formData.attachments.length > 0 && (
-                <div className="space-y-2">
-                  {formData.attachments.map((url, index) => (
-                    <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
-                      <Paperclip className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex-1 text-sm text-blue-600 hover:underline truncate"
-                      >
-                        {getFileNameFromUrl(url)}
-                      </a>
-                      <button
-                        onClick={() => removeAttachment(index)}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Remove attachment"
-                      >
-                        <XCircle className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => isCreating ? handleCreate() : handleUpdate(editingId!)}
-                disabled={!formData.name || !formData.subject || !formData.body}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                <Save className="h-4 w-4" />
-                {isCreating ? 'Create Template' : 'Save Changes'}
-              </button>
-              <button
-                onClick={resetForm}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
-              >
-                <X className="h-4 w-4" />
-                Cancel
-              </button>
-            </div>
-          </div>
-            </div>
-          )}
 
           {/* Templates List */}
           <div className="space-y-4">
@@ -348,7 +232,7 @@ export function TemplateManager() {
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
                   <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded mt-1">
-                    {targetTypeLabels[template.targetType]}
+                    {targetTypeLabels[template.targetType] || 'Unknown'}
                   </span>
                 </div>
                 <div className="flex gap-2">

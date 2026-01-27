@@ -1,0 +1,14 @@
+// Custom Target Type models
+// Allows users to define custom email template target types
+
+model CustomTargetType {
+  id          String   @id @default(cuid())
+  name        String   // e.g., "Tech Companies", "E-commerce Stores"
+  description String?  // Optional description
+  color       String   @default("#3B82F6") // Tailwind color for UI
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("custom_target_types")
+}
