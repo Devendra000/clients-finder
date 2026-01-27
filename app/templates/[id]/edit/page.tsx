@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { Sidebar } from '@/components/sidebar'
 import { Save, X, Upload, Paperclip, XCircle } from 'lucide-react'
 import { TargetTypeModal } from '@/components/target-type-modal'
+import { AlertDialog, type AlertType } from '@/components/alert-dialog'
 import type { EmailTemplate, TemplateTargetType, CustomTargetType } from "@/types/client"
 
 export default function EditTemplatePage() {
@@ -17,6 +18,19 @@ export default function EditTemplatePage() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [customTargets, setCustomTargets] = useState<CustomTargetType[]>([])
   const [isTargetTypeModalOpen, setIsTargetTypeModalOpen] = useState(false)
+  
+  const [alert, setAlert] = useState<{
+    isOpen: boolean
+    type: AlertType
+    title: string
+    message: string
+    onConfirm?: () => void
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
   const [formData, setFormData] = useState({
     name: '',
     subject: '',
@@ -58,7 +72,6 @@ export default function EditTemplatePage() {
   const handleTargetTypeCreated = (newType: CustomTargetType) => {
     setCustomTargets(prev => [...prev, newType])
   }
-
   const loadTemplate = async () => {
     try {
       const response = await fetch(`/api/templates/${templateId}`)
@@ -73,13 +86,23 @@ export default function EditTemplatePage() {
           attachments: data.template.attachments || []
         })
       } else {
-        alert('Template not found')
-        router.push('/templates')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Template not found',
+          onConfirm: () => router.push('/templates')
+        })
       }
     } catch (error) {
       console.error('Error loading template:', error)
-      alert('Error loading template')
-      router.push('/templates')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Error loading template',
+        onConfirm: () => router.push('/templates')
+      })
     } finally {
       setLoading(false)
     }
@@ -114,11 +137,21 @@ export default function EditTemplatePage() {
           attachments: [...prev.attachments, data.url]
         }))
       } else {
-        alert('Failed to upload file')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Upload Failed',
+          message: 'Failed to upload file'
+        })
       }
     } catch (error) {
       console.error('Error uploading file:', error)
-      alert('Error uploading file')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Upload Error',
+        message: 'Error uploading file'
+      })
     } finally {
       setUploadingFile(false)
     }
@@ -133,7 +166,12 @@ export default function EditTemplatePage() {
 
   const handleSave = async () => {
     if (!formData.name.trim() || !formData.subject.trim() || !formData.body.trim()) {
-      alert('Please fill in all required fields')
+      setAlert({
+        isOpen: true,
+        type: 'warning',
+        title: 'Missing Fields',
+        message: 'Please fill in all required fields (Name, Subject, Body)'
+      })
       return
     }
 
@@ -146,14 +184,29 @@ export default function EditTemplatePage() {
       })
 
       if (response.ok) {
-        alert('Template updated successfully')
-        router.push('/templates')
+        setAlert({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: 'Template updated successfully',
+          onConfirm: () => router.push('/templates')
+        })
       } else {
-        alert('Failed to update template')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to update template'
+        })
       }
     } catch (error) {
       console.error('Error updating template:', error)
-      alert('Error updating template')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Error updating template'
+      })
     } finally {
       setSaving(false)
     }
@@ -175,6 +228,14 @@ export default function EditTemplatePage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      <AlertDialog
+        isOpen={alert.isOpen}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alert.onConfirm}
+      />
       <TargetTypeModal 
         isOpen={isTargetTypeModalOpen}
         onClose={() => setIsTargetTypeModalOpen(false)}

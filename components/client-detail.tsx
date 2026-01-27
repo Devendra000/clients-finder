@@ -15,7 +15,8 @@ import {
   Phone,
   MessageSquare
 } from "lucide-react"
-import type { Client, ClientStatus } from "@/types/client"
+import type { Client, ClientStatus, AlertType } from "@/types/client"
+import { AlertDialog } from "./alert-dialog"
 
 interface ClientDetailProps {
   client: Client
@@ -33,6 +34,17 @@ const statusOptions: { value: ClientStatus; label: string; color: string }[] = [
 
 export function ClientDetail({ client, onClose, onStatusChange }: ClientDetailProps) {
   const [isUpdating, setIsUpdating] = useState(false)
+  const [alert, setAlert] = useState<{
+    isOpen: boolean
+    type: AlertType
+    title: string
+    message: string
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
 
   const handleStatusChange = async (newStatus: ClientStatus) => {
     setIsUpdating(true)
@@ -50,7 +62,12 @@ export function ClientDetail({ client, onClose, onStatusChange }: ClientDetailPr
       onStatusChange(client.id, newStatus)
     } catch (error) {
       console.error('Error updating status:', error)
-      alert('Failed to update client status')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update client status'
+      })
     } finally {
       setIsUpdating(false)
     }
@@ -58,6 +75,13 @@ export function ClientDetail({ client, onClose, onStatusChange }: ClientDetailPr
 
   return (
     <div className="h-full flex flex-col bg-white">
+      <AlertDialog
+        isOpen={alert.isOpen}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert(prev => ({ ...prev, isOpen: false }))}
+      />
       {/* Header */}
       <div className="flex items-start justify-between p-6 border-b border-gray-200">
         <div className="flex-1 min-w-0">

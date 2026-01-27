@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Sidebar } from '@/components/sidebar'
 import { Save, X, Upload, Paperclip, XCircle } from 'lucide-react'
 import { TargetTypeModal } from '@/components/target-type-modal'
+import { AlertDialog, type AlertType } from '@/components/alert-dialog'
 import type { TemplateTargetType, CustomTargetType } from "@/types/client"
 
 export default function CreateTemplatePage() {
@@ -14,6 +15,19 @@ export default function CreateTemplatePage() {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [customTargets, setCustomTargets] = useState<CustomTargetType[]>([])
   const [isTargetTypeModalOpen, setIsTargetTypeModalOpen] = useState(false)
+  
+  const [alert, setAlert] = useState<{
+    isOpen: boolean
+    type: AlertType
+    title: string
+    message: string
+    onConfirm?: () => void
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
 
   const [formData, setFormData] = useState({
     name: '',
@@ -85,11 +99,21 @@ export default function CreateTemplatePage() {
           attachments: [...prev.attachments, data.url]
         }))
       } else {
-        alert('Failed to upload file')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Upload Failed',
+          message: 'Failed to upload file'
+        })
       }
     } catch (error) {
       console.error('Error uploading file:', error)
-      alert('Error uploading file')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Upload Error',
+        message: 'Error uploading file'
+      })
     } finally {
       setUploadingFile(false)
     }
@@ -104,7 +128,12 @@ export default function CreateTemplatePage() {
 
   const handleSave = async () => {
     if (!formData.name.trim() || !formData.subject.trim() || !formData.body.trim()) {
-      alert('Please fill in all required fields')
+      setAlert({
+        isOpen: true,
+        type: 'warning',
+        title: 'Missing Fields',
+        message: 'Please fill in all required fields (Name, Subject, Body)'
+      })
       return
     }
 
@@ -117,14 +146,29 @@ export default function CreateTemplatePage() {
       })
 
       if (response.ok) {
-        alert('Template created successfully')
-        router.push('/templates')
+        setAlert({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: 'Template created successfully',
+          onConfirm: () => router.push('/templates')
+        })
       } else {
-        alert('Failed to create template')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to create template'
+        })
       }
     } catch (error) {
       console.error('Error creating template:', error)
-      alert('Error creating template')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Error creating template'
+      })
     } finally {
       setSaving(false)
     }
@@ -132,6 +176,14 @@ export default function CreateTemplatePage() {
 
   return (
     <div className="flex h-screen bg-gray-50">
+      <AlertDialog
+        isOpen={alert.isOpen}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alert.onConfirm}
+      />
       <TargetTypeModal 
         isOpen={isTargetTypeModalOpen}
         onClose={() => setIsTargetTypeModalOpen(false)}

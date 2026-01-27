@@ -108,3 +108,5 @@ export interface EmailTemplate {
   createdAt: Date
   updatedAt: Date
 }
+
+export type AlertType = 'success' | 'error' | 'warning' | 'info'

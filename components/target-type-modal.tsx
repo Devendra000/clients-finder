@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { X, Plus } from 'lucide-react'
+import { AlertDialog, type AlertType } from './alert-dialog'
 import type { CustomTargetType } from '@/types/client'
 
 interface TargetTypeModalProps {
@@ -12,6 +13,18 @@ interface TargetTypeModalProps {
 
 export function TargetTypeModal({ isOpen, onClose, onSuccess }: TargetTypeModalProps) {
   const [loading, setLoading] = useState(false)
+  const [alert, setAlert] = useState<{
+    isOpen: boolean
+    type: AlertType
+    title: string
+    message: string
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
+
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -30,7 +43,12 @@ export function TargetTypeModal({ isOpen, onClose, onSuccess }: TargetTypeModalP
     e.preventDefault()
     
     if (!formData.name.trim()) {
-      alert('Please enter a target type name')
+      setAlert({
+        isOpen: true,
+        type: 'warning',
+        title: 'Missing Name',
+        message: 'Please enter a target type name'
+      })
       return
     }
 
@@ -45,22 +63,43 @@ export function TargetTypeModal({ isOpen, onClose, onSuccess }: TargetTypeModalP
       if (response.ok) {
         const data = await response.json()
         if (data.success && data.customTargetType) {
+          setAlert({
+            isOpen: true,
+            type: 'success',
+            title: 'Success',
+            message: 'Target type created successfully'
+          })
           onSuccess(data.customTargetType)
           setFormData({
             name: '',
             description: '',
             color: '#3B82F6'
           })
-          onClose()
+          setTimeout(onClose, 1500)
         } else {
-          alert('Failed to create target type')
+          setAlert({
+            isOpen: true,
+            type: 'error',
+            title: 'Error',
+            message: 'Failed to create target type'
+          })
         }
       } else {
-        alert('Failed to create target type')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to create target type'
+        })
       }
     } catch (error) {
       console.error('Error creating target type:', error)
-      alert('Error creating target type')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Error creating target type'
+      })
     } finally {
       setLoading(false)
     }
@@ -69,7 +108,15 @@ export function TargetTypeModal({ isOpen, onClose, onSuccess }: TargetTypeModalP
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <>
+      <AlertDialog
+        isOpen={alert.isOpen}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert(prev => ({ ...prev, isOpen: false }))}
+      />
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-lg max-w-md w-full mx-4">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">Create Target Type</h2>
@@ -151,6 +198,7 @@ export function TargetTypeModal({ isOpen, onClose, onSuccess }: TargetTypeModalP
           </div>
         </form>
       </div>
-    </div>
+      </div>
+    </>
   )
 }

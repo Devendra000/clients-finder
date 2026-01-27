@@ -21,8 +21,9 @@ import {
   Trash2,
   X
 } from "lucide-react"
-import type { Client, ClientStatus, Note } from "@/types/client"
+import type { Client, ClientStatus, Note, AlertType } from "@/types/client"
 import { EmailModal } from "./email-modal"
+import { AlertDialog } from "./alert-dialog"
 
 interface ClientDetailPageProps {
   client: Client
@@ -48,6 +49,24 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
   const [editingNoteContent, setEditingNoteContent] = useState('')
   const [isSavingNote, setIsSavingNote] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [alert, setAlert] = useState<{
+    isOpen: boolean
+    type: AlertType
+    title: string
+    message: string
+    onConfirm?: () => void
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
+  const [deleteNoteConfirm, setDeleteNoteConfirm] = useState<{
+    isOpen: boolean
+    noteId?: string
+  }>({
+    isOpen: false
+  })
 
   // Debug log
   console.log('Client data:', client)
@@ -68,38 +87,16 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
       setClient({ ...client, status: newStatus })
     } catch (error) {
       console.error('Error updating status:', error)
-      alert('Failed to update client status')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update client status'
+      })
     } finally {
       setIsUpdating(false)
     }
   }
-
-  const handleSaveNotes = async () => {
-    setIsSavingNotes(true)
-    setNotesSaved(false)
-    try {
-      const response = await fetch(`/api/clients/${client.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to save notes')
-      }
-
-      const data = await response.json()
-      setClient({ ...client, notes })
-      setNotesSaved(true)
-      setTimeout(() => setNotesSaved(false), 2000)
-    } catch (error) {
-      console.error('Error saving notes:', error)
-      alert('Failed to save notes')
-    } finally {
-      setIsSavingNotes(false)
-    }
-  }
-
   const handleAddNote = async () => {
     if (!newNoteContent.trim()) return
 
@@ -120,7 +117,12 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
       setNewNoteContent('')
     } catch (error) {
       console.error('Error adding note:', error)
-      alert('Failed to add note')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to add note'
+      })
     } finally {
       setIsSavingNote(false)
     }
@@ -147,15 +149,26 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
       setEditingNoteContent('')
     } catch (error) {
       console.error('Error updating note:', error)
-      alert('Failed to update note')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update note'
+      })
     } finally {
       setIsSavingNote(false)
     }
   }
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this note?')) return
+    setDeleteNoteConfirm({
+      isOpen: true,
+      noteId
+    })
+  }
 
+  const confirmDeleteNote = async (noteId: string) => {
+    setDeleteNoteConfirm({ isOpen: false })
     try {
       const response = await fetch(`/api/clients/${client.id}/notes/${noteId}`, {
         method: 'DELETE'
@@ -168,7 +181,12 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
       setNotes(notes.filter(n => n.id !== noteId))
     } catch (error) {
       console.error('Error deleting note:', error)
-      alert('Failed to delete note')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to delete note'
+      })
     }
   }
 
@@ -209,7 +227,12 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
       }
     } catch (error) {
       console.error('Error navigating:', error)
-      alert('Failed to navigate to next client')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to navigate to next client'
+      })
     } finally {
       setIsNavigating(false)
     }
@@ -217,6 +240,24 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <AlertDialog
+        isOpen={alert.isOpen}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alert.onConfirm}
+      />
+      <AlertDialog
+        isOpen={deleteNoteConfirm.isOpen}
+        type="warning"
+        title="Delete Note"
+        message="Are you sure you want to delete this note? This action cannot be undone."
+        onClose={() => setDeleteNoteConfirm({ isOpen: false })}
+        onConfirm={() => deleteNoteConfirm.noteId && confirmDeleteNote(deleteNoteConfirm.noteId)}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-6">

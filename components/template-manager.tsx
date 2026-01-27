@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Plus, Edit, Trash2, Save, X, Upload, Paperclip, XCircle } from "lucide-react"
-import type { EmailTemplate, TemplateTargetType, CustomTargetType } from "@/types/client"
+import type { EmailTemplate, TemplateTargetType, CustomTargetType, AlertType } from "@/types/client"
 import { TargetTypeModal } from "./target-type-modal"
+import { AlertDialog } from "./alert-dialog"
 
 export function TemplateManager() {
   const router = useRouter()
@@ -24,6 +25,24 @@ export function TemplateManager() {
   })
 
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [alert, setAlert] = useState<{
+    isOpen: boolean
+    type: AlertType
+    title: string
+    message: string
+    onConfirm?: () => void
+  }>({
+    isOpen: false,
+    type: 'info',
+    title: '',
+    message: ''
+  })
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    isOpen: boolean
+    templateId?: string
+  }>({
+    isOpen: false
+  })
 
   useEffect(() => {
     loadTemplates()
@@ -73,11 +92,21 @@ export function TemplateManager() {
         resetForm()
         setIsCreating(false)
       } else {
-        alert('Failed to create template')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to create template'
+        })
       }
     } catch (error) {
       console.error('Error creating template:', error)
-      alert('Error creating template')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Error creating template'
+      })
     }
   }
 
@@ -94,30 +123,56 @@ export function TemplateManager() {
         resetForm()
         setEditingId(null)
       } else {
-        alert('Failed to update template')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to update template'
+        })
       }
     } catch (error) {
       console.error('Error updating template:', error)
-      alert('Error updating template')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Error updating template'
+      })
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) return
+  const handleDelete = async (templateId: string) => {
+    setDeleteConfirm({
+      isOpen: true,
+      templateId
+    })
+  }
 
+  const confirmDelete = async (templateId: string) => {
+    setDeleteConfirm({ isOpen: false })
     try {
-      const response = await fetch(`/api/templates/${id}`, {
+      const response = await fetch(`/api/templates/${templateId}`, {
         method: 'DELETE'
       })
 
       if (response.ok) {
         await loadTemplates()
       } else {
-        alert('Failed to delete template')
+        setAlert({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: 'Failed to delete template'
+        })
       }
     } catch (error) {
       console.error('Error deleting template:', error)
-      alert('Error deleting template')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Error deleting template'
+      })
     }
   }
 
@@ -170,7 +225,12 @@ export function TemplateManager() {
       }
     } catch (error) {
       console.error('Upload error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to upload file')
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to upload file'
+      })
     } finally {
       setUploadingFile(false)
       e.target.value = '' // Reset input
@@ -201,6 +261,24 @@ export function TemplateManager() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
+      <AlertDialog
+        isOpen={alert.isOpen}
+        type={alert.type}
+        title={alert.title}
+        message={alert.message}
+        onClose={() => setAlert(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={alert.onConfirm}
+      />
+      <AlertDialog
+        isOpen={deleteConfirm.isOpen}
+        type="warning"
+        title="Delete Template"
+        message="Are you sure you want to delete this template? This action cannot be undone."
+        onClose={() => setDeleteConfirm({ isOpen: false })}
+        onConfirm={() => deleteConfirm.templateId && confirmDelete(deleteConfirm.templateId)}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
       <TargetTypeModal 
         isOpen={isTargetTypeModalOpen}
         onClose={() => setIsTargetTypeModalOpen(false)}
