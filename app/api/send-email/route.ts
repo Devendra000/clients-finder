@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
+import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   // Only allow in development
@@ -11,7 +12,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { to, subject, body, clientName, clientEmail, useBrevo } = await request.json()
+    const { to, subject, body, clientId, clientName, clientEmail, useBrevo } = await request.json()
 
     // Validate required fields
     if (!to || !subject || !body) {
@@ -23,11 +24,21 @@ export async function POST(request: NextRequest) {
 
     // Use Brevo if requested and configured
     if (useBrevo && process.env.BREVO_API_KEY) {
-      return await sendViaBrevo(to, subject, body, clientName, clientEmail)
+      const result = await sendViaBrevo(to, subject, body, clientName, clientEmail)
+      // Update client status if email sent successfully and clientId provided
+      if (result.ok && clientId) {
+        await updateClientStatus(clientId)
+      }
+      return result
     }
 
     // Otherwise use SMTP (nodemailer)
-    return await sendViaSMTP(to, subject, body, clientName, clientEmail)
+    const result = await sendViaSMTP(to, subject, body, clientName, clientEmail)
+    // Update client status if email sent successfully and clientId provided
+    if (result.ok && clientId) {
+      await updateClientStatus(clientId)
+    }
+    return result
   } catch (error) {
     console.error('Error sending test email:', error)
     return NextResponse.json(
@@ -36,6 +47,27 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     )
+  }
+}
+
+async function updateClientStatus(clientId: string) {
+  try {
+    // Get current client status
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+      select: { status: true }
+    })
+
+    // Only update if status is PENDING
+    if (client?.status === 'PENDING') {
+      await prisma.client.update({
+        where: { id: clientId },
+        data: { status: 'CONTACTED' }
+      })
+    }
+  } catch (error) {
+    console.error('Error updating client status:', error)
+    // Don't throw - email was sent successfully, just status update failed
   }
 }
 

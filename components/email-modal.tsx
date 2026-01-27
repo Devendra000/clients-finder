@@ -95,6 +95,7 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
             to: client.email,
             subject: subject,
             body: body,
+            clientId: client.id,
             clientName: client.name,
             clientEmail: client.email,
             useBrevo: true
