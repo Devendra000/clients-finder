@@ -86,7 +86,6 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
 
     // If Brevo is selected, send via API
     if (useBrevo && isDevelopment) {
-      const plainTextBody = htmlToPlainText(body)
       setSending(true)
       try {
         const response = await fetch('/api/send-email', {
@@ -95,7 +94,7 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
           body: JSON.stringify({
             to: client.email,
             subject: subject,
-            body: plainTextBody,
+            body: body,
             clientName: client.name,
             clientEmail: client.email,
             useBrevo: true
@@ -160,7 +159,6 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
   }
 
   const handleTestSend = async () => {
-    const plainTextBody = htmlToPlainText(body)
     const testEmail = process.env.NEXT_PUBLIC_TEST_EMAIL || 'dev20581114@gmail.com'
     
     setSending(true)
@@ -171,7 +169,7 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
         body: JSON.stringify({
           to: testEmail,
           subject: `[TEST - ${client.name}] ${subject}`,
-          body: plainTextBody,
+          body: body,
           clientName: client.name,
           clientEmail: client.email,
           useBrevo: useBrevo

@@ -63,19 +63,7 @@ async function sendViaSMTP(
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
       subject,
-      text: body,
-      html: `
-        <html>
-          <body>
-            <p><strong>Client:</strong> ${clientName}</p>
-            <p><strong>Client Email:</strong> ${clientEmail}</p>
-            <hr />
-            <pre style="font-family: Arial, sans-serif; white-space: pre-wrap; word-wrap: break-word;">
-${body}
-            </pre>
-          </body>
-        </html>
-      `,
+      html: body,
     })
 
     return NextResponse.json({
