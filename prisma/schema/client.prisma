@@ -19,6 +19,7 @@ model Client {
   latitude    Float
   longitude   Float
   status      ClientStatus @default(PENDING)
+  notes       String?      @db.Text
 
   // Additional Geoapify fields
   openingHours String?

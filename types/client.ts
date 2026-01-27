@@ -26,6 +26,7 @@ export interface Client {
   latitude: number
   longitude: number
   status: ClientStatus
+  notes?: string
   openingHours?: string
   facilities?: string
   datasource?: string

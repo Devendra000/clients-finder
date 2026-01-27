@@ -244,6 +244,7 @@ export function ClientFinderApp() {
                   selectedClient={selectedClient}
                   onSelectClient={setSelectedClient}
                   isLoading={loading}
+                  filters={filters}
                 />
               </div>
             </main>

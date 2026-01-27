@@ -9,20 +9,30 @@ export async function PATCH(
   try {
     const { id } = await params
     const body = await request.json()
-    const { status } = body
+    const { status, notes } = body
 
-    // Validate status
-    if (!status || !Object.values(ClientStatus).includes(status)) {
-      return NextResponse.json(
-        { error: "Invalid status. Must be one of: PENDING, LEAD, REJECTED, CONTACTED, CLOSED" },
-        { status: 400 }
-      )
+    // Build update data
+    const updateData: any = {}
+    
+    if (status !== undefined) {
+      // Validate status
+      if (!Object.values(ClientStatus).includes(status)) {
+        return NextResponse.json(
+          { error: "Invalid status. Must be one of: PENDING, LEAD, REJECTED, CONTACTED, CLOSED" },
+          { status: 400 }
+        )
+      }
+      updateData.status = status
+    }
+    
+    if (notes !== undefined) {
+      updateData.notes = notes
     }
 
-    // Update client status
+    // Update client
     const updatedClient = await prisma.client.update({
       where: { id },
-      data: { status },
+      data: updateData,
     })
 
     return NextResponse.json({

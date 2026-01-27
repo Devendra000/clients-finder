@@ -13,7 +13,7 @@ import {
   Copy,
   Check,
 } from "lucide-react"
-import type { Client } from "@/types/client"
+import type { Client, FilterOptions } from "@/types/client"
 
 // Helper to format category labels
 const formatCategoryLabel = (category: string | undefined) => {
@@ -32,6 +32,7 @@ interface ClientListProps {
   selectedClient: Client | null
   onSelectClient: (client: Client) => void
   isLoading: boolean
+  filters?: FilterOptions
 }
 
 const STATUS_STYLES = {
@@ -79,7 +80,7 @@ const STATUS_STYLES = {
   },
 }
 
-export function ClientList({ clients, selectedClient, onSelectClient, isLoading }: ClientListProps) {
+export function ClientList({ clients, selectedClient, onSelectClient, isLoading, filters }: ClientListProps) {
   const selectedRef = useRef<HTMLDivElement | null>(null)
   const [copiedPhone, setCopiedPhone] = useState<string | null>(null)
 
@@ -96,6 +97,31 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
     } catch (err) {
       console.error('Failed to copy:', err)
     }
+  }
+
+  // Build filter query params
+  const buildFilterParams = () => {
+    if (!filters) return ''
+    
+    const params = new URLSearchParams()
+    if (filters.category && filters.category !== 'all') {
+      params.append('category', filters.category)
+    }
+    if (filters.status && filters.status !== 'all') {
+      params.append('status', filters.status)
+    }
+    if (filters.website && filters.website !== 'all') {
+      params.append('hasWebsite', filters.website)
+    }
+    if (filters.phone && filters.phone !== 'all') {
+      params.append('hasPhone', filters.phone)
+    }
+    if (filters.email && filters.email !== 'all') {
+      params.append('hasEmail', filters.email)
+    }
+    
+    const queryString = params.toString()
+    return queryString ? `?${queryString}` : ''
   }
 
   if (isLoading) {
@@ -158,7 +184,7 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
                         <span className="hidden sm:inline">{statusStyle.label}</span>
                       </div>
                       <a
-                        href={`/clients/${client.id}`}
+                        href={`/clients/${client.id}${buildFilterParams()}`}
                         onClick={(e) => e.stopPropagation()}
                         className="px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
                       >
@@ -220,11 +246,11 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading 
                       <a
                         href={`mailto:${client.email}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100 transition-colors flex-shrink-0 truncate max-w-[140px] sm:max-w-none"
+                        className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 px-2 py-1 rounded hover:bg-green-100 transition-colors flex-shrink-0"
                         title={client.email}
                       >
                         <MailIcon className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate text-[10px] sm:text-xs">{client.email.split("@")[0]}</span>
+                        <span className="text-[10px] sm:text-xs">{client.email}</span>
                       </a>
                     )}
                     {client.hasWebsite && client.website && (

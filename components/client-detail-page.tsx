@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { 
   PhoneIcon, 
   MapPinIcon, 
@@ -11,7 +11,11 @@ import {
   Clock, 
   MapIcon,
   ArrowLeft,
-  CheckCircle
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Save
 } from "lucide-react"
 import type { Client, ClientStatus } from "@/types/client"
 
@@ -29,8 +33,13 @@ const statusOptions: { value: ClientStatus; label: string; color: string }[] = [
 
 export function ClientDetailPage({ client: initialClient }: ClientDetailPageProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [client, setClient] = useState(initialClient)
   const [isUpdating, setIsUpdating] = useState(false)
+  const [isNavigating, setIsNavigating] = useState(false)
+  const [notes, setNotes] = useState(initialClient.notes || '')
+  const [isSavingNotes, setIsSavingNotes] = useState(false)
+  const [notesSaved, setNotesSaved] = useState(false)
 
   // Debug log
   console.log('Client data:', client)
@@ -57,18 +66,106 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
     }
   }
 
+  const handleSaveNotes = async () => {
+    setIsSavingNotes(true)
+    setNotesSaved(false)
+    try {
+      const response = await fetch(`/api/clients/${client.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save notes')
+      }
+
+      const data = await response.json()
+      setClient({ ...client, notes })
+      setNotesSaved(true)
+      setTimeout(() => setNotesSaved(false), 2000)
+    } catch (error) {
+      console.error('Error saving notes:', error)
+      alert('Failed to save notes')
+    } finally {
+      setIsSavingNotes(false)
+    }
+  }
+
+  const handleNavigation = async (direction: 'next' | 'prev') => {
+    setIsNavigating(true)
+    try {
+      // Build query params with current filters
+      const params = new URLSearchParams({ direction })
+      
+      // Add filters from search params
+      const category = searchParams.get('category')
+      const status = searchParams.get('status')
+      const hasWebsite = searchParams.get('hasWebsite')
+      const hasPhone = searchParams.get('hasPhone')
+      const hasEmail = searchParams.get('hasEmail')
+      
+      if (category && category !== 'all') params.append('category', category)
+      if (status && status !== 'all') params.append('status', status)
+      if (hasWebsite && hasWebsite !== 'all') params.append('hasWebsite', hasWebsite === 'yes' ? 'true' : 'false')
+      if (hasPhone && hasPhone !== 'all') params.append('hasPhone', hasPhone === 'yes' ? 'true' : 'false')
+      if (hasEmail && hasEmail !== 'all') params.append('hasEmail', hasEmail === 'yes' ? 'true' : 'false')
+      
+      const response = await fetch(`/api/clients/${client.id}/navigation?${params.toString()}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch navigation')
+      }
+      
+      const data = await response.json()
+      if (data.clientId && data.clientId !== client.id) {
+        // Preserve filters in the URL when navigating
+        const newUrl = `/clients/${data.clientId}?${searchParams.toString()}`
+        router.push(newUrl)
+      }
+    } catch (error) {
+      console.error('Error navigating:', error)
+      alert('Failed to navigate to next client')
+    } finally {
+      setIsNavigating(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-6">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4 transition-colors"
-          >
-            <ArrowLeft className="h-5 w-5" />
-            Back to Clients
-          </button>
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              Back to Clients
+            </button>
+            
+            {/* Navigation Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleNavigation('prev')}
+                disabled={isNavigating}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Previous Client"
+              >
+                <ChevronLeft className="h-5 w-5" />
+                Previous
+              </button>
+              <button
+                onClick={() => handleNavigation('next')}
+                disabled={isNavigating}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Next Client"
+              >
+                Next
+                <ChevronRight className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
           <div className="flex items-start justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900">{client.name}</h1>
@@ -203,11 +300,43 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
               </div>
             )}
 
+            {/* Notes Section */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Notes
+                </h2>
+                {notesSaved && (
+                  <span className="text-sm text-green-600 flex items-center gap-1">
+                    <CheckCircle className="h-4 w-4" />
+                    Saved
+                  </span>
+                )}
+              </div>
+              <div className="space-y-3">
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Add notes about this client..."
+                  className="w-full min-h-[150px] p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-y"
+                />
+                <button
+                  onClick={handleSaveNotes}
+                  disabled={isSavingNotes || notes === client.notes}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Save className="h-4 w-4" />
+                  {isSavingNotes ? 'Saving...' : 'Save Notes'}
+                </button>
+              </div>
+            </div>
+
             {/* Future Features Placeholder */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-blue-900 mb-2">Coming Soon</h3>
               <p className="text-sm text-blue-700">
-                Chat with client, notes, activity timeline, and more features will be available here.
+                Chat with client, activity timeline, and more features will be available here.
               </p>
             </div>
           </div>
