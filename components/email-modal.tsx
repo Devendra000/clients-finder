@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { X, Send, FileText, Paperclip } from "lucide-react"
+import { X, Send, FileText, Paperclip, Check, AlertCircle } from "lucide-react"
 import type { Client, EmailTemplate, TemplateTargetType } from "@/types/client"
 import { RichTextEditor } from "./rich-text-editor"
 import { AlertDialog } from "./alert-dialog"
@@ -10,9 +10,16 @@ interface EmailModalProps {
   client: Client
   isOpen: boolean
   onClose: () => void
+  onEmailSent?: () => void
 }
 
-export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
+interface Toast {
+  id: string
+  type: 'success' | 'error'
+  message: string
+}
+
+export function EmailModal({ client, isOpen, onClose, onEmailSent }: EmailModalProps) {
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
   const [subject, setSubject] = useState('')
@@ -21,11 +28,20 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
   const [sending, setSending] = useState(false)
   const [attachments, setAttachments] = useState<string[]>([])
   const [useBrevo, setUseBrevo] = useState(false)
+  const [toasts, setToasts] = useState<Toast[]>([])
   const [alertOpen, setAlertOpen] = useState(false)
   const [alertType, setAlertType] = useState<'success' | 'error' | 'warning' | 'info'>('info')
   const [alertTitle, setAlertTitle] = useState('')
   const [alertMessage, setAlertMessage] = useState('')
   const isDevelopment = process.env.NODE_ENV === 'development'
+
+  const showToast = (type: 'success' | 'error', message: string) => {
+    const id = Date.now().toString()
+    setToasts(prev => [...prev, { id, type, message }])
+    setTimeout(() => {
+      setToasts(prev => prev.filter(t => t.id !== id))
+    }, 3000)
+  }
 
   useEffect(() => {
     if (isOpen) {
@@ -103,24 +119,19 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
         })
 
         if (response.ok) {
-          setAlertType('success')
-          setAlertTitle('Email Sent')
-          setAlertMessage(`Email sent to ${client.email}`)
-          setAlertOpen(true)
+          // Trigger page refresh immediately
+          if (onEmailSent) {
+            onEmailSent()
+          }
+          showToast('success', `Email sent to ${client.email}`)
           handleReset()
           onClose()
         } else {
           const error = await response.json()
-          setAlertType('error')
-          setAlertTitle('Error')
-          setAlertMessage(`Error sending email: ${error.error || 'Unknown error'}`)
-          setAlertOpen(true)
+          showToast('error', error.error || 'Failed to send email')
         }
       } catch (error) {
-        setAlertType('error')
-        setAlertTitle('Error')
-        setAlertMessage(`Error sending email: ${error instanceof Error ? error.message : 'Unknown error'}`)
-        setAlertOpen(true)
+        showToast('error', error instanceof Error ? error.message : 'Failed to send email')
       } finally {
         setSending(false)
       }
@@ -169,8 +180,9 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: testEmail,
-          subject: `[TEST - ${client.name}] ${subject}`,
+          subject: subject,
           body: body,
+          clientId: client.id,
           clientName: client.name,
           clientEmail: client.email,
           useBrevo: useBrevo
@@ -178,22 +190,19 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
       })
 
       if (response.ok) {
-        setAlertType('success')
-        setAlertTitle('Email Sent')
-        setAlertMessage(`Test email sent to ${testEmail}`)
-        setAlertOpen(true)
+        // Trigger page refresh immediately
+        if (onEmailSent) {
+          onEmailSent()
+        }
+        showToast('success', `Test email sent to ${testEmail}`)
+        handleReset()
+        onClose()
       } else {
         const error = await response.json()
-        setAlertType('error')
-        setAlertTitle('Error')
-        setAlertMessage(`Error sending test email: ${error.error || 'Unknown error'}`)
-        setAlertOpen(true)
+        showToast('error', error.error || 'Failed to send email')
       }
     } catch (error) {
-      setAlertType('error')
-      setAlertTitle('Error')
-      setAlertMessage(`Error sending test email: ${error instanceof Error ? error.message : 'Unknown error'}`)
-      setAlertOpen(true)
+      showToast('error', error instanceof Error ? error.message : 'Failed to send email')
     } finally {
       setSending(false)
     }
@@ -370,6 +379,27 @@ export function EmailModal({ client, isOpen, onClose }: EmailModalProps) {
         message={alertMessage}
         onClose={() => setAlertOpen(false)}
       />
+
+      {/* Toast Notifications */}
+      <div className="fixed bottom-4 right-4 z-50 space-y-2 pointer-events-none">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`flex items-center gap-2 px-4 py-3 rounded-lg shadow-lg pointer-events-auto animate-slide-in ${
+              toast.type === 'success'
+                ? 'bg-green-500 text-white'
+                : 'bg-red-500 text-white'
+            }`}
+          >
+            {toast.type === 'success' ? (
+              <Check className="h-5 w-5 flex-shrink-0" />
+            ) : (
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            )}
+            <span className="text-sm font-medium">{toast.message}</span>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

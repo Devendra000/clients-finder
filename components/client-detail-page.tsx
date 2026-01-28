@@ -19,11 +19,27 @@ import {
   Plus,
   Edit,
   Trash2,
-  X
+  X,
+  Send,
+  Calendar
 } from "lucide-react"
 import type { Client, ClientStatus, Note, AlertType } from "@/types/client"
 import { EmailModal } from "./email-modal"
 import { AlertDialog } from "./alert-dialog"
+
+interface EmailHistory {
+  id: string
+  clientId: string
+  recipientEmail: string
+  subject: string
+  body: string
+  status: string // 'Sent', 'Failed', or 'Pending'
+  reason?: string // Error reason if Failed
+  sentAt: string
+  method?: string
+  createdAt: string
+  updatedAt: string
+}
 
 interface ClientDetailPageProps {
   client: Client
@@ -49,6 +65,9 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
   const [editingNoteContent, setEditingNoteContent] = useState('')
   const [isSavingNote, setIsSavingNote] = useState(false)
   const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailHistoryRefresh, setEmailHistoryRefresh] = useState(0)
+  const [emailHistory, setEmailHistory] = useState<EmailHistory[]>([])
+  const [loadingEmailHistory, setLoadingEmailHistory] = useState(false)
   const [alert, setAlert] = useState<{
     isOpen: boolean
     type: AlertType
@@ -70,6 +89,25 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
 
   // Debug log
   console.log('Client data:', client)
+
+  useEffect(() => {
+    loadEmailHistory()
+  }, [client.id, emailHistoryRefresh])
+
+  const loadEmailHistory = async () => {
+    setLoadingEmailHistory(true)
+    try {
+      const response = await fetch(`/api/clients/${client.id}/email-history`)
+      const data = await response.json()
+      if (data.success) {
+        setEmailHistory(data.emailHistory)
+      }
+    } catch (error) {
+      console.error('Error loading email history:', error)
+    } finally {
+      setLoadingEmailHistory(false)
+    }
+  }
 
   const handleStatusChange = async (newStatus: ClientStatus) => {
     setIsUpdating(true)
@@ -520,6 +558,55 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
               </div>
             </div>
 
+            {/* Email History */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Send className="h-5 w-5" />
+                Email History
+              </h3>
+              {loadingEmailHistory ? (
+                <p className="text-sm text-gray-500">Loading email history...</p>
+              ) : emailHistory.length === 0 ? (
+                <p className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+                  No emails sent yet
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {emailHistory.map((email) => (
+                    <div key={email.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{email.subject}</p>
+                          <p className="text-xs text-gray-600 truncate">{email.recipientEmail}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          {email.method && (
+                            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
+                              {email.method}
+                            </span>
+                          )}
+                          <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap font-medium ${
+                            email.status === 'Sent' ? 'bg-green-100 text-green-800' :
+                            email.status === 'Failed' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {email.status}
+                          </span>
+                        </div>
+                      </div>
+                      {email.status === 'Failed' && email.reason && (
+                        <p className="text-xs text-red-600 mb-2 break-words">Error: {email.reason}</p>
+                      )}
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(email.sentAt).toLocaleDateString()} at {new Date(email.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Future Features Placeholder */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h3 className="text-lg font-semibold text-blue-900 mb-2">Coming Soon</h3>
@@ -632,6 +719,7 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
           client={client}
           isOpen={showEmailModal}
           onClose={() => setShowEmailModal(false)}
+          onEmailSent={() => setEmailHistoryRefresh(prev => prev + 1)}
         />
       )}
     </div>

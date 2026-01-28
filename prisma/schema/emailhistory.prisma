@@ -10,6 +10,9 @@ model EmailHistory {
   subject   String
   body      String   @db.Text
   
+  status    String   @default("Pending") // 'Sent', 'Failed', or 'Pending'
+  reason    String?  // Error reason if Failed
+  
   sentAt    DateTime @default(now())
   method    String?  // 'SMTP' or 'Brevo'
   
@@ -18,5 +21,6 @@ model EmailHistory {
 
   @@index([clientId])
   @@index([sentAt])
+  @@index([status])
   @@map("email_history")
 }

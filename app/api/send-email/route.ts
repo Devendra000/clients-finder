@@ -16,23 +16,48 @@ export async function POST(request: NextRequest) {
 
     // Use Brevo if requested and configured
     if (useBrevo && process.env.BREVO_API_KEY) {
-      const result = await sendViaBrevo(to, subject, body, clientName, clientEmail)
-      // Update client status and log email if sent successfully and clientId provided
-      if (result.ok && clientId) {
-        await updateClientStatus(clientId)
-        await logEmailHistory(clientId, to, subject, body, 'Brevo')
+      try {
+        console.log('Sending email via Brevo with subject:', subject)
+        const result = await sendViaBrevo(to, subject, body, clientName, clientEmail)
+        // Log successful email
+        if (clientId) {
+          await logEmailHistory(clientId, to, subject, body, 'Brevo', 'Sent')
+          await updateClientStatus(clientId)
+        }
+        return result
+      } catch (error) {
+        // Log failed email
+        if (clientId) {
+          const reason = error instanceof Error ? error.message : 'Unknown error'
+          await logEmailHistory(clientId, to, subject, body, 'Brevo', 'Failed', reason)
+        }
+        return NextResponse.json(
+          { error: error instanceof Error ? error.message : 'Failed to send email via Brevo' },
+          { status: 500 }
+        )
       }
-      return result
     }
 
     // Otherwise use SMTP (nodemailer)
-    const result = await sendViaSMTP(to, subject, body, clientName, clientEmail)
-    // Update client status and log email if sent successfully and clientId provided
-    if (result.ok && clientId) {
-      await updateClientStatus(clientId)
-      await logEmailHistory(clientId, to, subject, body, 'SMTP')
+    try {
+      const result = await sendViaSMTP(to, subject, body, clientName, clientEmail)
+      // Log successful email
+      if (clientId) {
+        await logEmailHistory(clientId, to, subject, body, 'SMTP', 'Sent')
+        await updateClientStatus(clientId)
+      }
+      return result
+    } catch (error) {
+      // Log failed email
+      if (clientId) {
+        const reason = error instanceof Error ? error.message : 'Unknown error'
+        await logEmailHistory(clientId, to, subject, body, 'SMTP', 'Failed', reason)
+      }
+      return NextResponse.json(
+        { error: error instanceof Error ? error.message : 'Failed to send email via SMTP' },
+        { status: 500 }
+      )
     }
-    return result
   } catch (error) {
     console.error('Error sending test email:', error)
     return NextResponse.json(
@@ -49,7 +74,9 @@ async function logEmailHistory(
   recipientEmail: string,
   subject: string,
   body: string,
-  method: string
+  method: string,
+  status: string = 'Pending',
+  reason?: string
 ) {
   try {
     await prisma.emailHistory.create({
@@ -59,11 +86,13 @@ async function logEmailHistory(
         subject,
         body,
         method,
+        status,
+        reason,
       },
     })
   } catch (error) {
     console.error('Error logging email history:', error)
-    // Don't throw - email was sent successfully, just history logging failed
+    // Don't throw - email was sent or failed, just history logging failed
   }
 }
 
@@ -107,7 +136,7 @@ async function sendViaSMTP(
       },
     })
 
-    // Send email
+    // Send email (no development headers - act like production)
     const info = await transporter.sendMail({
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
       to,
@@ -117,7 +146,7 @@ async function sendViaSMTP(
 
     return NextResponse.json({
       success: true,
-      message: 'Test email sent via SMTP successfully',
+      message: 'Email sent via SMTP successfully',
       messageId: info.messageId,
       method: 'SMTP',
     })
@@ -139,6 +168,7 @@ async function sendViaBrevo(
       throw new Error('Brevo API key not configured')
     }
 
+    console.log('Sending email via Brevo with subject:', subject)
     const senderEmail = process.env.BREVO_SENDER_EMAIL
     const senderName = process.env.BREVO_SENDER_NAME
 
@@ -160,7 +190,7 @@ ${body}
     const emailPayload = {
       sender: {
         email: senderEmail,
-        name: senderName || 'Clients Finder',
+        name: senderName || 'Chakra Financial and IT Solutions',
       },
       to: [
         {
@@ -175,6 +205,7 @@ ${body}
       },
     }
 
+    console.log('Brevo email payload:', emailPayload)
     const sendResponse = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
@@ -194,7 +225,7 @@ ${body}
 
     return NextResponse.json({
       success: true,
-      message: 'Test email sent via Brevo successfully',
+      message: 'Email sent via Brevo successfully',
       messageId: result.messageId,
       method: 'Brevo',
     })

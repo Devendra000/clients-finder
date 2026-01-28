@@ -36,6 +36,7 @@ interface ClientDetailProps {
   client: Client
   onClose: () => void
   onStatusChange: (clientId: string, newStatus: ClientStatus) => void
+  emailHistoryRefresh?: number
 }
 
 const statusOptions: { value: ClientStatus; label: string; color: string }[] = [
@@ -46,7 +47,7 @@ const statusOptions: { value: ClientStatus; label: string; color: string }[] = [
   { value: 'CLOSED' as ClientStatus, label: 'Closed', color: 'bg-gray-100 text-gray-800 border-gray-300' },
 ]
 
-export function ClientDetail({ client, onClose, onStatusChange }: ClientDetailProps) {
+export function ClientDetail({ client, onClose, onStatusChange, emailHistoryRefresh }: ClientDetailProps) {
   const [isUpdating, setIsUpdating] = useState(false)
   const [emailHistory, setEmailHistory] = useState<EmailHistory[]>([])
   const [loadingEmailHistory, setLoadingEmailHistory] = useState(false)
@@ -64,7 +65,7 @@ export function ClientDetail({ client, onClose, onStatusChange }: ClientDetailPr
 
   useEffect(() => {
     loadEmailHistory()
-  }, [client.id])
+  }, [client.id, emailHistoryRefresh])
 
   const loadEmailHistory = async () => {
     setLoadingEmailHistory(true)
