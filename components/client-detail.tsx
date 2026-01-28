@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { 
   PhoneIcon, 
   MapPinIcon, 
@@ -13,10 +13,24 @@ import {
   CheckCircle,
   XCircle,
   Phone,
-  MessageSquare
+  MessageSquare,
+  Send,
+  Calendar
 } from "lucide-react"
 import type { Client, ClientStatus, AlertType } from "@/types/client"
 import { AlertDialog } from "./alert-dialog"
+
+interface EmailHistory {
+  id: string
+  clientId: string
+  recipientEmail: string
+  subject: string
+  body: string
+  sentAt: string
+  method?: string
+  createdAt: string
+  updatedAt: string
+}
 
 interface ClientDetailProps {
   client: Client
@@ -34,6 +48,8 @@ const statusOptions: { value: ClientStatus; label: string; color: string }[] = [
 
 export function ClientDetail({ client, onClose, onStatusChange }: ClientDetailProps) {
   const [isUpdating, setIsUpdating] = useState(false)
+  const [emailHistory, setEmailHistory] = useState<EmailHistory[]>([])
+  const [loadingEmailHistory, setLoadingEmailHistory] = useState(false)
   const [alert, setAlert] = useState<{
     isOpen: boolean
     type: AlertType
@@ -45,6 +61,25 @@ export function ClientDetail({ client, onClose, onStatusChange }: ClientDetailPr
     title: '',
     message: ''
   })
+
+  useEffect(() => {
+    loadEmailHistory()
+  }, [client.id])
+
+  const loadEmailHistory = async () => {
+    setLoadingEmailHistory(true)
+    try {
+      const response = await fetch(`/api/clients/${client.id}/email-history`)
+      const data = await response.json()
+      if (data.success) {
+        setEmailHistory(data.emailHistory)
+      }
+    } catch (error) {
+      console.error('Error loading email history:', error)
+    } finally {
+      setLoadingEmailHistory(false)
+    }
+  }
 
   const handleStatusChange = async (newStatus: ClientStatus) => {
     setIsUpdating(true)
@@ -287,6 +322,43 @@ export function ClientDetail({ client, onClose, onStatusChange }: ClientDetailPr
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800 font-medium">Coming Soon</p>
           <p className="text-xs text-blue-600 mt-1">Chat, notes, and activity tracking will be available here</p>
+        </div>
+
+        {/* Email History */}
+        <div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <Send className="h-4 w-4" />
+            Email History
+          </h3>
+          {loadingEmailHistory ? (
+            <p className="text-sm text-gray-500">Loading email history...</p>
+          ) : emailHistory.length === 0 ? (
+            <p className="text-sm text-gray-500 p-3 bg-gray-50 rounded-lg">
+              No emails sent yet
+            </p>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {emailHistory.map((email) => (
+                <div key={email.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-gray-300 transition-colors">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{email.subject}</p>
+                      <p className="text-xs text-gray-600 truncate">{email.recipientEmail}</p>
+                    </div>
+                    {email.method && (
+                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full whitespace-nowrap">
+                        {email.method}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(email.sentAt).toLocaleDateString()} at {new Date(email.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

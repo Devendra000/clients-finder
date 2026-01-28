@@ -1,0 +1,22 @@
+// Email tracking model
+// Stores history of emails sent to clients
+
+model EmailHistory {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  
+  recipientEmail String
+  subject   String
+  body      String   @db.Text
+  
+  sentAt    DateTime @default(now())
+  method    String?  // 'SMTP' or 'Brevo'
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([sentAt])
+  @@map("email_history")
+}

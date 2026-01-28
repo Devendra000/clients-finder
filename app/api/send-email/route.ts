@@ -17,18 +17,20 @@ export async function POST(request: NextRequest) {
     // Use Brevo if requested and configured
     if (useBrevo && process.env.BREVO_API_KEY) {
       const result = await sendViaBrevo(to, subject, body, clientName, clientEmail)
-      // Update client status if email sent successfully and clientId provided
+      // Update client status and log email if sent successfully and clientId provided
       if (result.ok && clientId) {
         await updateClientStatus(clientId)
+        await logEmailHistory(clientId, to, subject, body, 'Brevo')
       }
       return result
     }
 
     // Otherwise use SMTP (nodemailer)
     const result = await sendViaSMTP(to, subject, body, clientName, clientEmail)
-    // Update client status if email sent successfully and clientId provided
+    // Update client status and log email if sent successfully and clientId provided
     if (result.ok && clientId) {
       await updateClientStatus(clientId)
+      await logEmailHistory(clientId, to, subject, body, 'SMTP')
     }
     return result
   } catch (error) {
@@ -39,6 +41,29 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     )
+  }
+}
+
+async function logEmailHistory(
+  clientId: string,
+  recipientEmail: string,
+  subject: string,
+  body: string,
+  method: string
+) {
+  try {
+    await prisma.emailHistory.create({
+      data: {
+        clientId,
+        recipientEmail,
+        subject,
+        body,
+        method,
+      },
+    })
+  } catch (error) {
+    console.error('Error logging email history:', error)
+    // Don't throw - email was sent successfully, just history logging failed
   }
 }
 
