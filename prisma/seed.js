@@ -11,7 +11,7 @@ const prisma = new PrismaClient({
 })
 
 async function main() {
-  const testEmail = process.env.NEXT_PUBLIC_TEST_EMAIL
+  const testEmail = process.env.NEXT_PUBLIC_TEST_EMAIL || "dev20581114@gmail.com"
 
   if (!testEmail) {
     console.log('NEXT_PUBLIC_TEST_EMAIL environment variable not set. Skipping test client creation.')
