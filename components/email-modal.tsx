@@ -101,7 +101,7 @@ export function EmailModal({ client, isOpen, onClose, onEmailSent }: EmailModalP
     }
 
     // If Brevo is selected, send via API
-    if (useBrevo && isDevelopment) {
+    if (useBrevo) {
       setSending(true)
       try {
         const response = await fetch('/api/send-email', {
