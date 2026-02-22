@@ -55,7 +55,7 @@ export function ClientFinderApp() {
   }, [currentView, loadAllClients])
 
   const handleClientsFetched = useCallback(() => {
-    setCurrentView("clients")
+    // Just refresh the data without changing view
     loadAllClients()
   }, [loadAllClients])
 

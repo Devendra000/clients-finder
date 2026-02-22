@@ -26,9 +26,16 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
   const [category, setCategory] = useState("education.school")
   const [radius, setRadius] = useState("5000")
   const [limit, setLimit] = useState("50")
+  const [offset, setOffset] = useState(0)
   const [fetching, setFetching] = useState(false)
+  const [autoFetching, setAutoFetching] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [hasMore, setHasMore] = useState(true)
+  const [totalFetched, setTotalFetched] = useState(0)
+  const [totalNew, setTotalNew] = useState(0)
+  const [autoFetchStats, setAutoFetchStats] = useState<any>(null)
+  const [autoFetchSingleCategory, setAutoFetchSingleCategory] = useState(false)
 
   const getUserLocation = useCallback(() => {
     setGettingLocation(true)
@@ -48,6 +55,8 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
         })
         setGettingLocation(false)
         setSuccess("Location detected successfully!")
+        // Reset pagination when location changes
+        resetPagination()
       },
       (error) => {
         setError(`Failed to get location: ${error.message}`)
@@ -56,7 +65,14 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
     )
   }, [])
 
-  const fetchClients = useCallback(async () => {
+  const resetPagination = useCallback(() => {
+    setOffset(0)
+    setHasMore(true)
+    setTotalFetched(0)
+    setTotalNew(0)
+  }, [])
+
+  const fetchClients = useCallback(async (isInitial = false) => {
     if (!location) {
       setError("Please get your location first")
       return
@@ -64,15 +80,19 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
 
     setFetching(true)
     setError(null)
-    setSuccess(null)
+    if (isInitial) {
+      setSuccess(null)
+    }
 
     try {
+      const currentOffset = isInitial ? 0 : offset
       const params = new URLSearchParams({
         lat: location.lat.toString(),
         lon: location.lon.toString(),
         radius: radius,
         category: category,
         limit: limit,
+        offset: currentOffset.toString(),
       })
 
       const response = await fetch(`/api/clients/search?${params.toString()}`)
@@ -82,7 +102,18 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
       }
 
       const data = await response.json()
-      setSuccess(`Successfully fetched and stored ${data.count} clients!`)
+      
+      // Update pagination state
+      setHasMore(data.pagination?.hasMore || false)
+      setOffset(data.pagination?.nextOffset || currentOffset)
+      setTotalFetched(prev => isInitial ? data.count : prev + data.count)
+      setTotalNew(prev => isInitial ? data.newCount : prev + data.newCount)
+      
+      setSuccess(
+        `Fetched ${data.count} clients (${data.newCount} new, ${data.existingCount} existing). ` +
+        `Total: ${isInitial ? data.count : totalFetched + data.count} fetched, ${isInitial ? data.newCount : totalNew + data.newCount} new.` +
+        (data.pagination?.hasMore ? " More results available!" : " No more results.")
+      )
       
       if (onClientsFetched) {
         onClientsFetched()
@@ -92,7 +123,56 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
     } finally {
       setFetching(false)
     }
-  }, [location, radius, category, limit, onClientsFetched])
+  }, [location, radius, category, limit, offset, totalFetched, totalNew, onClientsFetched])
+
+  const startAutoFetch = useCallback(async () => {
+    if (!location) {
+      setError("Please get your location first")
+      return
+    }
+
+    setAutoFetching(true)
+    setError(null)
+    setSuccess(null)
+    setAutoFetchStats(null)
+
+    try {
+      const response = await fetch("/api/clients/auto-fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: location.lat,
+          lon: location.lon,
+          radius: radius,
+          batchSize: 100,
+          maxBatchesPerCategory: 10,
+          category: autoFetchSingleCategory ? category : null
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error("Auto-fetch failed")
+      }
+
+      const data = await response.json()
+      setAutoFetchStats(data)
+      const categoryText = autoFetchSingleCategory 
+        ? `for ${CATEGORIES.find(c => c.value === category)?.label || category}`
+        : `across ${data.summary.categoriesProcessed} categories`
+      setSuccess(
+        `🎉 Auto-fetch completed! Found ${data.summary.newClients} NEW clients ` +
+        `(${data.summary.totalFetched} total) ${categoryText}!`
+      )
+      
+      if (onClientsFetched) {
+        onClientsFetched()
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Auto-fetch failed")
+    } finally {
+      setAutoFetching(false)
+    }
+  }, [location, radius, category, autoFetchSingleCategory, onClientsFetched])
 
   return (
     <div className="max-w-2xl mx-auto p-6">
@@ -164,7 +244,10 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
             <select
               id="category"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
+              onChange={(e) => {
+                setCategory(e.target.value)
+                resetPagination()
+              }}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               {CATEGORIES.map((cat) => (
@@ -183,7 +266,10 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
               id="radius"
               type="number"
               value={radius}
-              onChange={(e) => setRadius(e.target.value)}
+              onChange={(e) => {
+                setRadius(e.target.value)
+                resetPagination()
+              }}
               min="1000"
               max="50000"
               step="1000"
@@ -196,20 +282,38 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
 
           <div>
             <label htmlFor="limit" className="block text-sm font-medium text-gray-700 mb-2">
-              Maximum Results
+              Batch Size (per request)
             </label>
             <input
               id="limit"
               type="number"
               value={limit}
-              onChange={(e) => setLimit(e.target.value)}
+              onChange={(e) => {
+                setLimit(e.target.value)
+              }}
               min="10"
               max="100"
               step="10"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              Fetch {limit} results per batch. Use "Fetch More" to continue from where you left off.
+            </p>
           </div>
         </div>
+
+        {/* Progress Stats */}
+        {totalFetched > 0 && (
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="text-sm font-medium text-blue-900 mb-2">Fetching Progress</div>
+            <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
+              <div>Total Fetched: <span className="font-semibold">{totalFetched}</span></div>
+              <div>New Clients: <span className="font-semibold">{totalNew}</span></div>
+              <div>Already Exist: <span className="font-semibold">{totalFetched - totalNew}</span></div>
+              <div>Next Offset: <span className="font-semibold">{offset}</span></div>
+            </div>
+          </div>
+        )}
 
         {/* Error/Success Messages */}
         {error && (
@@ -224,30 +328,164 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
           </div>
         )}
 
-        {/* Fetch Button */}
-        <button
-          onClick={fetchClients}
-          disabled={!location || fetching}
-          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
-        >
-          {fetching ? (
-            <>
-              <Loader2 className="h-5 w-5 animate-spin" />
-              Fetching clients...
-            </>
-          ) : (
-            <>
-              <Plus className="h-5 w-5" />
-              Fetch Clients from Geoapify
-            </>
+        {/* Auto-Fetch Stats */}
+        {autoFetchStats && (
+          <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="text-sm font-bold text-purple-900 mb-3">🎯 Auto-Fetch Results</div>
+            <div className="grid grid-cols-2 gap-3 text-sm text-purple-900 mb-3">
+              <div className="p-2 bg-white rounded">
+                <div className="text-xs text-purple-600">Total Fetched</div>
+                <div className="text-lg font-bold">{autoFetchStats.summary.totalFetched}</div>
+              </div>
+              <div className="p-2 bg-white rounded">
+                <div className="text-xs text-purple-600">New Clients</div>
+                <div className="text-lg font-bold text-green-600">{autoFetchStats.summary.newClients}</div>
+              </div>
+            </div>
+            <details className="text-xs">
+              <summary className="cursor-pointer font-semibold text-purple-800 mb-2">Category Breakdown</summary>
+              <div className="space-y-1 mt-2">
+                {autoFetchStats.stats.map((stat: any, idx: number) => (
+                  <div key={idx} className="flex justify-between p-1 bg-white rounded">
+                    <span className="font-medium">{stat.category.split('.').pop()}</span>
+                    <span className="text-green-600 font-semibold">{stat.newClients} new</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          </div>
+        )}
+
+        {/* Auto-Fetch Section */}
+        <div className="border-2 border-purple-300 rounded-lg p-4 bg-gradient-to-br from-purple-50 to-pink-50">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">⚡</div>
+            <div>
+              <h3 className="font-bold text-gray-900">AUTO-FETCH {autoFetchSingleCategory ? 'CATEGORY' : 'ALL DATA'}</h3>
+              <p className="text-xs text-gray-600">
+                {autoFetchSingleCategory 
+                  ? `Fetch all available data for ${CATEGORIES.find(c => c.value === category)?.label || category}`
+                  : 'Automatically fetch ALL businesses across 10 categories'}
+              </p>
+            </div>
+          </div>
+
+          {/* Category Selection Toggle */}
+          <div className="mb-3 p-3 bg-white/60 rounded-lg">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoFetchSingleCategory}
+                onChange={(e) => setAutoFetchSingleCategory(e.target.checked)}
+                className="w-4 h-4 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Only fetch selected category ({CATEGORIES.find(c => c.value === category)?.label})
+              </span>
+            </label>
+          </div>
+          
+          <button
+            onClick={startAutoFetch}
+            disabled={!location || autoFetching || fetching}
+            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all font-bold text-lg shadow-lg"
+          >
+            {autoFetching ? (
+              <>
+                <Loader2 className="h-6 w-6 animate-spin" />
+                Auto-Fetching... (This may take a few minutes)
+              </>
+            ) : (
+              <>
+                <Target className="h-6 w-6" />
+                {autoFetchSingleCategory 
+                  ? `START AUTO-FETCH (${CATEGORIES.find(c => c.value === category)?.label})` 
+                  : 'START AUTO-FETCH ALL CATEGORIES'}
+              </>
+            )}
+          </button>
+          
+          <div className="mt-3 text-xs text-gray-600 bg-white/60 p-3 rounded">
+            <strong>⚡ This will automatically:</strong>
+            <ul className="list-disc list-inside mt-1 space-y-1">
+              {autoFetchSingleCategory ? (
+                <>
+                  <li>Fetch from <strong>{CATEGORIES.find(c => c.value === category)?.label}</strong> category only</li>
+                  <li>Get up to 1000 results for this category</li>
+                </>
+              ) : (
+                <>
+                  <li>Fetch from ALL 10 business categories</li>
+                  <li>Get up to 1000 results per category (~10,000 total)</li>
+                </>
+              )}
+              <li>Use your current location and {(parseInt(radius) / 1000).toFixed(0)}km radius</li>
+              <li>Skip duplicates automatically</li>
+              <li>Run in the background ({autoFetchSingleCategory ? '30-60 seconds' : '2-5 minutes'})</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* Manual Fetch Section */}
+        <div className="border-t pt-4">
+          <h3 className="font-semibold text-gray-700 mb-3">Manual Fetch (Single Category)</h3>
+          <div className="space-y-3">
+          <button
+            onClick={() => {
+              resetPagination()
+              fetchClients(true)
+            }}
+            disabled={!location || fetching}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+          >
+            {fetching ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Fetching clients...
+              </>
+            ) : (
+              <>
+                <Plus className="h-5 w-5" />
+                Start Fresh Search
+              </>
+            )}
+          </button>
+
+          {totalFetched > 0 && hasMore && (
+            <button
+              onClick={() => fetchClients(false)}
+              disabled={!location || fetching || !hasMore}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            >
+              {fetching ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Fetching more...
+                </>
+              ) : (
+                <>
+                  <Plus className="h-5 w-5" />
+                  Fetch Next {limit} Results
+                </>
+              )}
+            </button>
           )}
-        </button>
+          </div>
+        </div>
 
         {/* Info */}
-        <div className="text-xs text-gray-500 border-t pt-4">
+        <div className="text-xs text-gray-500 border-t pt-4 space-y-2">
           <p>
-            This will search for businesses in the selected category within the specified radius and store
-            them in your database. Duplicate places will not be added.
+            <strong>🚀 Auto-Fetch (Recommended):</strong> Use the purple "AUTO-FETCH" button to automatically fetch 
+            ALL available data from your location across all 10 categories. This runs in the background and gets 
+            you maximum data with one click (up to ~10,000 businesses total).
+          </p>
+          <p>
+            <strong>Manual Fetch:</strong> Use "Start Fresh Search" for a single category search, then click 
+            "Fetch Next {limit} Results" to continue fetching more from that category.
+          </p>
+          <p>
+            <strong>Note:</strong> Duplicate places (already in database) will not be added again.
           </p>
         </div>
       </div>

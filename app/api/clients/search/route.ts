@@ -10,6 +10,7 @@ export async function GET(request: NextRequest) {
     const lon = searchParams.get("lon")
     const radius = searchParams.get("radius") || "10000"
     const limit = searchParams.get("limit") || "50"
+    const offset = searchParams.get("offset") || "0"
 
     if (!process.env.GEOAPIFY_API_KEY) {
       return NextResponse.json(
@@ -32,10 +33,10 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Build Geoapify Places API URL exactly as in the example
-    const geoapifyUrl = `https://api.geoapify.com/v2/places?categories=${category}&filter=circle:${lon},${lat},${radius}&limit=${limit}&apiKey=${process.env.GEOAPIFY_API_KEY}`
+    // Build Geoapify Places API URL with offset for pagination
+    const geoapifyUrl = `https://api.geoapify.com/v2/places?categories=${category}&filter=circle:${lon},${lat},${radius}&limit=${limit}&offset=${offset}&apiKey=${process.env.GEOAPIFY_API_KEY}`
 
-    console.log("Fetching from Geoapify:", geoapifyUrl.replace(process.env.GEOAPIFY_API_KEY, "***"))
+    console.log(`Fetching from Geoapify (offset: ${offset}):`, geoapifyUrl.replace(process.env.GEOAPIFY_API_KEY, "***"))
 
     // Fetch from Geoapify
     const response = await fetch(geoapifyUrl)
@@ -121,12 +122,21 @@ export async function GET(request: NextRequest) {
 
     console.log(`Stored ${clients.length} clients (${newCount} new, ${clients.length - newCount} existing)`)
 
+    const hasMore = data.features.length === parseInt(limit)
+    const nextOffset = parseInt(offset) + parseInt(limit)
+
     return NextResponse.json({
       success: true,
       count: clients.length,
       newCount,
       existingCount: clients.length - newCount,
       clients: clients,
+      pagination: {
+        offset: parseInt(offset),
+        limit: parseInt(limit),
+        hasMore,
+        nextOffset: hasMore ? nextOffset : null,
+      },
     })
 
   } catch (error) {
