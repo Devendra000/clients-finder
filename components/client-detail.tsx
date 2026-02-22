@@ -201,7 +201,7 @@ export function ClientDetail({ client, onClose, onStatusChange, emailHistoryRefr
                 <div className="flex-1 min-w-0">
                   <p className="text-xs text-gray-500 mb-1">Website</p>
                   <a 
-                    href={client.website} 
+                    href={client.website?.startsWith('http://') || client.website?.startsWith('https://') ? client.website : `https://${client.website}`} 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     className="text-sm text-blue-600 hover:underline font-medium break-all"

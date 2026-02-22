@@ -607,7 +607,7 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-gray-500 mb-1">Website</p>
                         <a 
-                          href={client.website} 
+                          href={client.website?.startsWith('http://') || client.website?.startsWith('https://') ? client.website : `https://${client.website}`} 
                           target="_blank" 
                           rel="noopener noreferrer" 
                           className="text-base text-blue-600 hover:underline font-medium break-all"

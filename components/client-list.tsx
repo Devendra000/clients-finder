@@ -259,7 +259,7 @@ export function ClientList({ clients, selectedClient, onSelectClient, isLoading,
                     )}
                     {client.hasWebsite && client.website && (
                       <a
-                        href={`https://${client.website}`}
+                        href={client.website.startsWith('http://') || client.website.startsWith('https://') ? client.website : `https://${client.website}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
