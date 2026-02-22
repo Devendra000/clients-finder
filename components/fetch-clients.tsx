@@ -361,11 +361,11 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
           <div className="flex items-center gap-2 mb-3">
             <div className="h-8 w-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">⚡</div>
             <div>
-              <h3 className="font-bold text-gray-900">AUTO-FETCH {autoFetchSingleCategory ? 'CATEGORY' : 'ALL DATA'}</h3>
+              <h3 className="font-bold text-gray-900">AUTO-FETCH ACROSS NEPAL {autoFetchSingleCategory ? '(1 CATEGORY)' : '(ALL CATEGORIES)'}</h3>
               <p className="text-xs text-gray-600">
                 {autoFetchSingleCategory 
-                  ? `Fetch all available data for ${CATEGORIES.find(c => c.value === category)?.label || category}`
-                  : 'Automatically fetch ALL businesses across 10 categories'}
+                  ? `Search 10 cities for ${CATEGORIES.find(c => c.value === category)?.label || category} (~5,000 results)`
+                  : 'Search 10 cities across ALL categories (~50,000 results!)'}
               </p>
             </div>
           </div>
@@ -411,18 +411,23 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
               {autoFetchSingleCategory ? (
                 <>
                   <li>Fetch from <strong>{CATEGORIES.find(c => c.value === category)?.label}</strong> category only</li>
-                  <li>Get up to 1000 results for this category</li>
+                  <li>Search across <strong>10 major cities</strong> in Nepal (Kathmandu, Pokhara, Lalitpur, etc.)</li>
+                  <li>Get up to <strong>500 results per city</strong> = ~5,000 total for this category</li>
                 </>
               ) : (
                 <>
-                  <li>Fetch from ALL 10 business categories</li>
-                  <li>Get up to 1000 results per category (~10,000 total)</li>
+                  <li>Fetch from <strong>ALL 10 business categories</strong></li>
+                  <li>Search across <strong>10 major cities</strong> in Nepal</li>
+                  <li>Get up to <strong>500 results per city per category</strong> = ~50,000 total businesses!</li>
                 </>
               )}
-              <li>Use your current location and {(parseInt(radius) / 1000).toFixed(0)}km radius</li>
+              <li>25km radius around each city center</li>
               <li>Skip duplicates automatically</li>
-              <li>Run in the background ({autoFetchSingleCategory ? '30-60 seconds' : '2-5 minutes'})</li>
+              <li>Run in the background ({autoFetchSingleCategory ? '1-3 minutes' : '10-20 minutes'})</li>
             </ul>
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-yellow-800">
+              <strong>Note:</strong> Geoapify limits 500 results per location, so we search multiple cities to get ALL the data!
+            </div>
           </div>
         </div>
 
@@ -476,16 +481,18 @@ export function FetchClients({ onClientsFetched }: FetchClientsProps) {
         {/* Info */}
         <div className="text-xs text-gray-500 border-t pt-4 space-y-2">
           <p>
-            <strong>🚀 Auto-Fetch (Recommended):</strong> Use the purple "AUTO-FETCH" button to automatically fetch 
-            ALL available data from your location across all 10 categories. This runs in the background and gets 
-            you maximum data with one click (up to ~10,000 businesses total).
+            <strong>🚀 Auto-Fetch (Recommended):</strong> Use the purple "AUTO-FETCH" button to automatically search 
+            <strong> 10 major cities across Nepal</strong> (Kathmandu, Pokhara, Lalitpur, Biratnagar, Bharatpur, Birgunj, 
+            Dharan, Butwal, Hetauda, Janakpur). Gets up to <strong>500 results per city per category</strong> = 
+            up to ~50,000 businesses total! Takes 10-20 minutes to complete.
           </p>
           <p>
-            <strong>Manual Fetch:</strong> Use "Start Fresh Search" for a single category search, then click 
-            "Fetch Next {limit} Results" to continue fetching more from that category.
+            <strong>Manual Fetch:</strong> Use "Start Fresh Search" for a single category search from your current location, 
+            then click "Fetch Next {limit} Results" to continue fetching more (max 500 per location due to API limits).
           </p>
           <p>
-            <strong>Note:</strong> Duplicate places (already in database) will not be added again.
+            <strong>Note:</strong> Duplicate places are automatically skipped. Auto-fetch overcomes the 500-result 
+            API limit by searching multiple locations!
           </p>
         </div>
       </div>

@@ -15,11 +15,21 @@ const CATEGORIES = [
   "sport.fitness",
 ]
 
-// Nepal center coordinates (Kathmandu)
-const NEPAL_CENTER = {
-  lat: 27.7172,
-  lon: 85.3240
-}
+// Multiple locations across Nepal to overcome 500-result API limit
+const NEPAL_LOCATIONS = [
+  { name: "Kathmandu", lat: 27.7172, lon: 85.3240 },
+  { name: "Pokhara", lat: 28.2096, lon: 83.9856 },
+  { name: "Lalitpur", lat: 27.6661, lon: 85.3247 },
+  { name: "Biratnagar", lat: 26.4525, lon: 87.2718 },
+  { name: "Bharatpur", lat: 27.6800, lon: 84.4344 },
+  { name: "Birgunj", lat: 27.0099, lon: 84.8797 },
+  { name: "Dharan", lat: 26.8150, lon: 87.2820 },
+  { name: "Butwal", lat: 27.7000, lon: 83.4480 },
+  { name: "Hetauda", lat: 27.4283, lon: 85.0331 },
+  { name: "Janakpur", lat: 26.7288, lon: 85.9242 },
+]
+
+const NEPAL_CENTER = NEPAL_LOCATIONS[0] // Default to Kathmandu
 
 interface FetchStats {
   category: string
@@ -111,12 +121,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { 
-      lat = NEPAL_CENTER.lat, 
-      lon = NEPAL_CENTER.lon, 
-      radius = "50000", // 50km radius
+      radius = "25000", // 25km radius per location
       batchSize = 100,
-      maxBatchesPerCategory = 10, // Max 1000 results per category
-      category = null // Optional: fetch specific category only
+      maxBatchesPerCategory = 5, // Max 500 results per location (API limit)
+      category = null, // Optional: fetch specific category only
+      useMultipleLocations = true // Use multiple locations to get more data
     } = body
 
     const stats: FetchStats[] = []
@@ -125,56 +134,68 @@ export async function POST(request: NextRequest) {
 
     // Determine which categories to fetch
     const categoriesToFetch = category ? [category] : CATEGORIES
+    
+    // Determine which locations to use
+    const locationsToUse = useMultipleLocations ? NEPAL_LOCATIONS : [NEPAL_CENTER]
 
-    console.log(`🚀 Starting auto-fetch for Nepal (${lat}, ${lon}) with ${radius}m radius`)
+    console.log(`🚀 Starting auto-fetch across ${locationsToUse.length} locations with ${radius}m radius`)
     console.log(`📋 Categories: ${categoriesToFetch.join(', ')}`)
+    console.log(`📍 Locations: ${locationsToUse.map(l => l.name).join(', ')}`)
 
     for (const cat of categoriesToFetch) {
-      console.log(`\n📍 Fetching category: ${cat}`)
+      console.log(`\n📂 Category: ${cat}`)
       
       let categoryTotal = 0
       let categoryNew = 0
       let categoryExisting = 0
-      let offset = 0
-      let hasMore = true
-      let batchCount = 0
 
-      while (hasMore && batchCount < maxBatchesPerCategory) {
-        try {
-          const data = await fetchBatchFromGeoapify(
-            cat,
-            lat,
-            lon,
-            radius,
-            batchSize,
-            offset
-          )
+      // Fetch from each location
+      for (const location of locationsToUse) {
+        console.log(`  📍 Fetching from ${location.name}...`)
+        
+        let offset = 0
+        let hasMore = true
+        let batchCount = 0
 
-          if (!data.features || data.features.length === 0) {
+        while (hasMore && batchCount < maxBatchesPerCategory) {
+          try {
+            const data = await fetchBatchFromGeoapify(
+              cat,
+              location.lat,
+              location.lon,
+              radius,
+              batchSize,
+              offset
+            )
+
+            if (!data.features || data.features.length === 0) {
+              hasMore = false
+              break
+            }
+
+            const { newCount, existingCount, total } = await storePlaces(data.features, cat)
+            
+            categoryTotal += total
+            categoryNew += newCount
+            categoryExisting += existingCount
+            grandTotal += total
+            grandNew += newCount
+
+            console.log(`    Batch ${batchCount + 1}: ${newCount} new, ${existingCount} existing`)
+
+            offset += batchSize
+            batchCount++
+            hasMore = data.features.length === batchSize
+
+            // Small delay to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 300))
+          } catch (error) {
+            console.error(`    Error in batch ${batchCount + 1}:`, error)
             hasMore = false
-            break
           }
-
-          const { newCount, existingCount, total } = await storePlaces(data.features, cat)
-          
-          categoryTotal += total
-          categoryNew += newCount
-          categoryExisting += existingCount
-          grandTotal += total
-          grandNew += newCount
-
-          console.log(`  Batch ${batchCount + 1}: ${newCount} new, ${existingCount} existing`)
-
-          offset += batchSize
-          batchCount++
-          hasMore = data.features.length === batchSize
-
-          // Small delay to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 500))
-        } catch (error) {
-          console.error(`  Error in batch ${batchCount + 1}:`, error)
-          hasMore = false
         }
+        
+        console.log(`  ✓ ${location.name}: Fetched up to ${batchCount * batchSize} results`)
       }
 
       stats.push({
@@ -182,10 +203,10 @@ export async function POST(request: NextRequest) {
         totalFetched: categoryTotal,
         newClients: categoryNew,
         existingClients: categoryExisting,
-        completed: !hasMore || batchCount >= maxBatchesPerCategory
+        completed: true
       })
 
-      console.log(`✓ ${cat}: ${categoryNew} new clients (${categoryTotal} total fetched)`)
+      console.log(`✅ ${cat}: ${categoryNew} new clients (${categoryTotal} total fetched from ${locationsToUse.length} locations)`)
     }
 
     console.log(`\n✅ Auto-fetch completed: ${grandNew} new clients from ${grandTotal} total fetched`)
