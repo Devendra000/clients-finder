@@ -86,6 +86,9 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
   }>({
     isOpen: false
   })
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [editedClient, setEditedClient] = useState<Client>(initialClient)
+  const [deleteClientConfirm, setDeleteClientConfirm] = useState(false)
 
   // Debug log
   console.log('Client data:', client)
@@ -135,7 +138,80 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
       setIsUpdating(false)
     }
   }
-  const handleAddNote = async () => {
+
+  const handleSaveClient = async () => {
+    setIsUpdating(true)
+    try {
+      const response = await fetch(`/api/clients/${client.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editedClient)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update client')
+      }
+
+      const data = await response.json()
+      setClient(data.client)
+      setIsEditMode(false)
+      setAlert({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: 'Client updated successfully'
+      })
+    } catch (error) {
+      console.error('Error updating client:', error)
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to update client information'
+      })
+    } finally {
+      setIsUpdating(false)
+    }
+  }
+
+  const handleCancelEdit = () => {
+    setEditedClient(client)
+    setIsEditMode(false)
+  }
+
+  const handleDeleteClient = async () => {
+    setDeleteClientConfirm(false)
+    setIsUpdating(true)
+    try {
+      const response = await fetch(`/api/clients/${client.id}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete client')
+      }
+
+      setAlert({
+        isOpen: true,
+        type: 'success',
+        title: 'Deleted',
+        message: 'Client deleted successfully'
+      })
+      
+      setTimeout(() => router.push('/'), 1500)
+    } catch (error) {
+      console.error('Error deleting client:', error)
+      setAlert({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: 'Failed to delete client'
+      })
+      setIsUpdating(false)
+    }
+  }
+
+  const  handleAddNote = async () => {
     if (!newNoteContent.trim()) return
 
     setIsSavingNote(true)
@@ -296,6 +372,16 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
         confirmText="Delete"
         cancelText="Cancel"
       />
+      <AlertDialog
+        isOpen={deleteClientConfirm}
+        type="warning"
+        title="Delete Client"
+        message="Are you sure you want to permanently delete this client? This will remove all data including notes and email history. This action cannot be undone."
+        onClose={() => setDeleteClientConfirm(false)}
+        onConfirm={handleDeleteClient}
+        confirmText="Delete"
+        cancelText="Cancel"
+      />
       {/* Header */}
       <header className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-6">
@@ -308,36 +394,100 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
               Back to Clients
             </button>
             
-            {/* Navigation Buttons */}
+            {/* Action Buttons */}
             <div className="flex gap-2">
-              <button
-                onClick={() => handleNavigation('prev')}
-                disabled={isNavigating}
-                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Previous Client"
-              >
-                <ChevronLeft className="h-5 w-5" />
-                Previous
-              </button>
-              <button
-                onClick={() => handleNavigation('next')}
-                disabled={isNavigating}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Next Client"
-              >
-                Next
-                <ChevronRight className="h-5 w-5" />
-              </button>
+              {!isEditMode ? (
+                <>
+                  <button
+                    onClick={() => setDeleteClientConfirm(true)}
+                    disabled={isUpdating}
+                    className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Delete Client"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </button>
+                  <button
+                    onClick={() => {
+                      setEditedClient(client)
+                      setIsEditMode(true)
+                    }}
+                    disabled={isUpdating}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Edit Client"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleNavigation('prev')}
+                    disabled={isNavigating}
+                    className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Previous Client"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handleNavigation('next')}
+                    disabled={isNavigating}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    title="Next Client"
+                  >
+                    Next
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={handleCancelEdit}
+                    disabled={isUpdating}
+                    className="flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveClient}
+                    disabled={isUpdating}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Save className="h-4 w-4" />
+                    {isUpdating ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </>
+              )}
             </div>
           </div>
           <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">{client.name}</h1>
-              {client.category && (
-                <div className="flex items-center gap-2 mt-2 text-gray-600">
-                  <BuildingIcon className="h-5 w-5" />
-                  <span className="text-lg">{client.category}</span>
-                </div>
+            <div className="flex-1">
+              {isEditMode ? (
+                <input
+                  type="text"
+                  value={editedClient.name}
+                  onChange={(e) => setEditedClient({ ...editedClient, name: e.target.value })}
+                  className="text-3xl font-bold text-gray-900 border-2 border-blue-500 rounded px-2 py-1 w-full max-w-2xl"
+                  placeholder="Client Name"
+                />
+              ) : (
+                <h1 className="text-3xl font-bold text-gray-900">{client.name}</h1>
+              )}
+              {isEditMode ? (
+                <input
+                  type="text"
+                  value={editedClient.category || ''}
+                  onChange={(e) => setEditedClient({ ...editedClient, category: e.target.value })}
+                  className="mt-2 text-lg text-gray-600 border-2 border-blue-500 rounded px-2 py-1 w-full max-w-md"
+                  placeholder="Category"
+                />
+              ) : (
+                client.category && (
+                  <div className="flex items-center gap-2 mt-2 text-gray-600">
+                    <BuildingIcon className="h-5 w-5" />
+                    <span className="text-lg">{client.category}</span>
+                  </div>
+                )
               )}
             </div>
             <span className={`px-4 py-2 text-sm font-medium rounded-full ${
@@ -383,57 +533,92 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
             {/* Contact Information */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h2>
-              <div className="space-y-4">
-                {!client.phone && !client.email && !client.website && (
-                  <p className="text-gray-500 text-sm">No contact information available</p>
-                )}
-                {client.phone && (
-                  <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                    <PhoneIcon className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-500 mb-1">Phone</p>
-                      <a 
-                        href={`tel:${client.phone}`} 
-                        className="text-base text-blue-600 hover:underline font-medium"
-                      >
-                        {client.phone}
-                      </a>
-                    </div>
+              {isEditMode ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                    <input
+                      type="tel"
+                      value={editedClient.phone || ''}
+                      onChange={(e) => setEditedClient({ ...editedClient, phone: e.target.value })}
+                      className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none"
+                      placeholder="+977 9841234567"
+                    />
                   </div>
-                )}
-                
-                {client.email && (
-                  <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                    <Mail className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-500 mb-1">Email</p>
-                      <button
-                        onClick={() => setShowEmailModal(true)}
-                        className="text-base text-blue-600 hover:underline font-medium break-all text-left"
-                      >
-                        {client.email}
-                      </button>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <input
+                      type="email"
+                      value={editedClient.email || ''}
+                      onChange={(e) => setEditedClient({ ...editedClient, email: e.target.value })}
+                      className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none"
+                      placeholder="example@email.com"
+                    />
                   </div>
-                )}
-                
-                {client.website && (
-                  <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
-                    <Globe className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-500 mb-1">Website</p>
-                      <a 
-                        href={client.website} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-base text-blue-600 hover:underline font-medium break-all"
-                      >
-                        {client.website}
-                      </a>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                    <input
+                      type="url"
+                      value={editedClient.website || ''}
+                      onChange={(e) => setEditedClient({ ...editedClient, website: e.target.value })}
+                      className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none"
+                      placeholder="https://www.example.com"
+                    />
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {!client.phone && !client.email && !client.website && (
+                    <p className="text-gray-500 text-sm">No contact information available</p>
+                  )}
+                  {client.phone && (
+                    <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+                      <PhoneIcon className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-500 mb-1">Phone</p>
+                        <a 
+                          href={`tel:${client.phone}`} 
+                          className="text-base text-blue-600 hover:underline font-medium"
+                        >
+                          {client.phone}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {client.email && (
+                    <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+                      <Mail className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-500 mb-1">Email</p>
+                        <button
+                          onClick={() => setShowEmailModal(true)}
+                          className="text-base text-blue-600 hover:underline font-medium break-all text-left"
+                        >
+                          {client.email}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {client.website && (
+                    <div className="flex items-start gap-4 p-4 bg-gray-50 rounded-lg">
+                      <Globe className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-500 mb-1">Website</p>
+                        <a 
+                          href={client.website} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-base text-blue-600 hover:underline font-medium break-all"
+                        >
+                          {client.website}
+                        </a>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Additional Information */}
@@ -621,76 +806,144 @@ export function ClientDetailPage({ client: initialClient }: ClientDetailPageProp
             {/* Location Information */}
             <div className="bg-white rounded-lg shadow p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Location</h2>
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="flex items-start gap-3">
-                    <MapPinIcon className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-500 mb-2">Full Address</p>
-                      <p className="text-base text-gray-900 mb-3">{client.address}</p>
-                      
-                      <div className="space-y-2 text-sm">
-                        {client.street && (
-                          <div className="flex">
-                            <span className="text-gray-500 w-20">Street:</span>
-                            <span className="text-gray-900">{client.street}</span>
-                          </div>
-                        )}
-                        {client.city && (
-                          <div className="flex">
-                            <span className="text-gray-500 w-20">City:</span>
-                            <span className="text-gray-900">{client.city}</span>
-                          </div>
-                        )}
-                        {client.state && (
-                          <div className="flex">
-                            <span className="text-gray-500 w-20">State:</span>
-                            <span className="text-gray-900">{client.state}</span>
-                          </div>
-                        )}
-                        {client.postcode && (
-                          <div className="flex">
-                            <span className="text-gray-500 w-20">Postcode:</span>
-                            <span className="text-gray-900">{client.postcode}</span>
-                          </div>
-                        )}
-                        {client.country && (
-                          <div className="flex">
-                            <span className="text-gray-500 w-20">Country:</span>
-                            <span className="text-gray-900">{client.country} {client.countryCode && `(${client.countryCode})`}</span>
-                          </div>
-                        )}
+              {isEditMode ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Full Address</label>
+                    <textarea
+                      value={editedClient.address || ''}
+                      onChange={(e) => setEditedClient({ ...editedClient, address: e.target.value })}
+                      className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none min-h-[60px]"
+                      placeholder="Full address"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Street</label>
+                    <input
+                      type="text"
+                      value={editedClient.street || ''}
+                      onChange={(e) => setEditedClient({ ...editedClient, street: e.target.value })}
+                      className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none"
+                      placeholder="Street"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                      <input
+                        type="text"
+                        value={editedClient.city || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, city: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none"
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">State</label>
+                      <input
+                        type="text"
+                        value={editedClient.state || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, state: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none"
+                        placeholder="State"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Postcode</label>
+                      <input
+                        type="text"
+                        value={editedClient.postcode || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, postcode: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none"
+                        placeholder="Postcode"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                      <input
+                        type="text"
+                        value={editedClient.country || ''}
+                        onChange={(e) => setEditedClient({ ...editedClient, country: e.target.value })}
+                        className="w-full px-4 py-2 border-2 border-blue-500 rounded-lg focus:outline-none"
+                        placeholder="Country"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <MapPinIcon className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-500 mb-2">Full Address</p>
+                        <p className="text-base text-gray-900 mb-3">{client.address}</p>
+                        
+                        <div className="space-y-2 text-sm">
+                          {client.street && (
+                            <div className="flex">
+                              <span className="text-gray-500 w-20">Street:</span>
+                              <span className="text-gray-900">{client.street}</span>
+                            </div>
+                          )}
+                          {client.city && (
+                            <div className="flex">
+                              <span className="text-gray-500 w-20">City:</span>
+                              <span className="text-gray-900">{client.city}</span>
+                            </div>
+                          )}
+                          {client.state && (
+                            <div className="flex">
+                              <span className="text-gray-500 w-20">State:</span>
+                              <span className="text-gray-900">{client.state}</span>
+                            </div>
+                          )}
+                          {client.postcode && (
+                            <div className="flex">
+                              <span className="text-gray-500 w-20">Postcode:</span>
+                              <span className="text-gray-900">{client.postcode}</span>
+                            </div>
+                          )}
+                          {client.country && (
+                            <div className="flex">
+                              <span className="text-gray-500 w-20">Country:</span>
+                              <span className="text-gray-900">{client.country} {client.countryCode && `(${client.countryCode})`}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
+              )}
 
-                {client.latitude && client.longitude && (
-                  <>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <div className="flex items-start gap-3">
-                        <MapIcon className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-500 mb-1">Coordinates</p>
-                          <p className="text-sm font-mono text-gray-900">
-                            {client.latitude.toFixed(6)}, {client.longitude.toFixed(6)}
-                          </p>
-                        </div>
+              {client.latitude && client.longitude && (
+                <>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <MapIcon className="h-6 w-6 text-gray-600 mt-1 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-500 mb-1">Coordinates</p>
+                        <p className="text-sm font-mono text-gray-900">
+                          {client.latitude.toFixed(6)}, {client.longitude.toFixed(6)}
+                        </p>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Map */}
-                    <div className="rounded-lg overflow-hidden border border-gray-200">
-                      <iframe
-                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${client.longitude - 0.01},${client.latitude - 0.01},${client.longitude + 0.01},${client.latitude + 0.01}&layer=mapnik&marker=${client.latitude},${client.longitude}`}
-                        className="w-full h-64 border-0"
-                        loading="lazy"
-                        allowFullScreen
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
+                  {/* Map */}
+                  <div className="rounded-lg overflow-hidden border border-gray-200">
+                    <iframe
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=${client.longitude - 0.01},${client.latitude - 0.01},${client.longitude + 0.01},${client.latitude + 0.01}&layer=mapnik&marker=${client.latitude},${client.longitude}`}
+                      className="w-full h-64 border-0"
+                      loading="lazy"
+                      allowFullScreen
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Metadata */}
